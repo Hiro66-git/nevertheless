@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Heritage Palette -->
+    <color name="ritu_saffron">#FF7A00</color>
+    <color name="ritu_deep_saffron">#E65100</color>
+    <color name="ritu_marigold">#FFB300</color>
+    <color name="ritu_terracotta">#C84B31</color>
+    <color name="ritu_temple_gold">#D4AF37</color>
+    <color name="ritu_peacock_teal">#00796B</color>
+    <color name="ritu_royal_indigo">#1A237E</color>
+    <color name="ritu_sandalwood">#FBF8F2</color>
+    <color name="ritu_sandalwood_dark">#ECE6D8</color>
+    <color name="ritu_midnight">#0D1117</color>
+    <color name="ritu_card_dark">#161B22</color>
+    <color name="ritu_border_dark">#30363D</color>
+    <color name="ritu_assamese_muga">#E5A93C</color>
+    <color name="ritu_lotus_pink">#E91E63</color>
+    <color name="ritu_monsoon_blue">#37474F</color>
+</resources>

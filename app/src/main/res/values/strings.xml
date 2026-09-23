@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ritu</string>
+    <string name="app_tagline">The Living Calendar of Seasons, Festivals &amp; Life</string>
+    <string name="app_devanagari_title">ऋतु</string>
+
+    <!-- Navigation -->
+    <string name="nav_today">Today</string>
+    <string name="nav_month">Month</string>
+    <string name="nav_year">Year</string>
+    <string name="nav_festivals">Festivals</string>
+    <string name="nav_events">Events</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Panchang Terms -->
+    <string name="panchang_tithi">Tithi</string>
+    <string name="panchang_paksha">Paksha</string>
+    <string name="panchang_shukla">Shukla Paksha (Waxing)</string>
+    <string name="panchang_krishna">Krishna Paksha (Waning)</string>
+    <string name="panchang_nakshatra">Nakshatra</string>
+    <string name="panchang_yoga">Yoga</string>
+    <string name="panchang_karana">Karana</string>
+    <string name="panchang_lunar_month">Lunar Month</string>
+    <string name="panchang_solar_month">Solar Month</string>
+    <string name="panchang_ritu">Ritu (Season)</string>
+    <string name="panchang_samvat">Samvat</string>
+    <string name="panchang_vikram_samvat">Vikram Samvat</string>
+    <string name="panchang_saka_samvat">Saka Samvat</string>
+    <string name="panchang_bhaskar_era">Bhaskar Era (Assam)</string>
+    <string name="panchang_bengali_san">Bengali San</string>
+    <string name="panchang_kollam_era">Kollam Era</string>
+    <string name="panchang_tamil_year">Tamil Year</string>
+    
+    <!-- Sun & Moon -->
+    <string name="sunrise">Sunrise</string>
+    <string name="sunset">Sunset</string>
+    <string name="solar_noon">Solar Noon</string>
+    <string name="day_length">Day Length</string>
+    <string name="moon_phase">Moon Phase</string>
+    <string name="moon_illumination">Illumination</string>
+    <string name="new_moon">Amavasya (New Moon)</string>
+    <string name="full_moon">Purnima (Full Moon)</string>
+
+    <!-- Muhurat & Timings -->
+    <string name="abhijit_muhurat">Abhijit Muhurat</string>
+    <string name="brahma_muhurat">Brahma Muhurat</string>
+    <string name="rahu_kaal">Rahu Kaal</string>
+    <string name="yamaganda">Yamaganda</string>
+    <string name="gulika_kaal">Gulika Kaal</string>
+    <string name="auspicious_timing">Auspicious Timings</string>
+    <string name="inauspicious_timing">Inauspicious Timings</string>
+
+    <!-- Seasons (Ritus) -->
+    <string name="ritu_vasanta">Vasanta (Spring)</string>
+    <string name="ritu_grishma">Grishma (Summer)</string>
+    <string name="ritu_varsha">Varsha (Monsoon)</string>
+    <string name="ritu_sharad">Sharad (Autumn)</string>
+    <string name="ritu_hemanta">Hemanta (Pre-Winter)</string>
+    <string name="ritu_shishira">Shishira (Winter)</string>
+
+    <!-- Regions -->
+    <string name="region_all_india">All India</string>
+    <string name="region_northeast_assam">Northeast &amp; Assam</string>
+    <string name="region_north_india">North India</string>
+    <string name="region_south_india">South India</string>
+    <string name="region_east_india">East India</string>
+    <string name="region_west_india">West India</string>
+    <string name="region_central_india">Central India</string>
+
+    <!-- Events -->
+    <string name="create_event">Create Event</string>
+    <string name="edit_event">Edit Event</string>
+    <string name="delete_event">Delete Event</string>
+    <string name="event_title">Event Title</string>
+    <string name="event_description">Description</string>
+    <string name="event_date">Date</string>
+    <string name="event_time">Time</string>
+    <string name="event_all_day">All Day</string>
+    <string name="event_category">Category</string>
+    <string name="event_recurrence">Recurrence</string>
+    <string name="event_reminder">Reminder</string>
+    <string name="event_location">Location</string>
+    <string name="event_notes">Notes &amp; Checklist</string>
+    <string name="no_events_today">No personal events scheduled for today</string>
+    <string name="add_first_event">Tap + to add your first event or reminder</string>
+
+    <!-- Categories -->
+    <string name="category_personal">Personal</string>
+    <string name="category_festival">Festival</string>
+    <string name="category_holiday">Holiday</string>
+    <string name="category_birthday">Birthday</string>
+    <string name="category_anniversary">Anniversary</string>
+    <string name="category_puja_vrat">Puja &amp; Vrat</string>
+    <string name="category_work">Work</string>
+
+    <!-- Themes -->
+    <string name="theme_light">Sandalwood (Light)</string>
+    <string name="theme_dark">Midnight Sky (Dark)</string>
+    <string name="theme_heritage">Indian Heritage (Terracotta &amp; Gold)</string>
+    <string name="theme_minimal">Minimal Slate</string>
+    <string name="theme_festival_mode">Festival Mode (Vibrant Saffron &amp; Teal)</string>
+
+    <!-- General -->
+    <string name="search_placeholder">Search festivals, events, holidays, regions...</string>
+    <string name="upcoming_festivals">Upcoming Festivals</string>
+    <string name="todays_festivals">Today\'s Celebrations</string>
+    <string name="regional_highlights">Regional Highlights</string>
+    <string name="cultural_significance">Significance &amp; Origins</string>
+    <string name="traditions_rituals">Traditions &amp; Rituals</string>
+    <string name="traditional_foods">Traditional Foods &amp; Delicacies</string>
+    <string name="regional_variations">Regional Variations</string>
+    <string name="countdown_days">%d days remaining</string>
+    <string name="countdown_today">Celebrating Today!</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="confirm_delete">Are you sure you want to delete this event?</string>
+</resources>
