@@ -1,6 +1,6 @@
 # WebForge Visual
 
-WebForge Visual is a professional, visual-first Three.js scene editor for crafting interactive web experiences. This repository contains the browser-ready editor shell, designed so the same renderer and project model can be embedded into an Electron desktop host later.
+WebForge Visual is a professional, visual-first Three.js scene editor for crafting interactive web experiences. This repository contains the browser-ready editor and a secure Electron desktop shell that loads the same renderer and project model.
 
 ## What is implemented
 
