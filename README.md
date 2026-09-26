@@ -1,153 +1,204 @@
-# ऋतु (Ritu) — The Living Indian Calendar of Seasons, Festivals & Life
+# 🍃 LeafCode
 
-> *"A calendar should feel like a living representation of time, culture, seasons, festivals, and personal life."*
+> **The Intelligent Botanical AI Terminal Assistant CLI**  
+> *Autonomous coding agent with multi-provider AI model routing, rich green botanical terminal aesthetics, and zero external runtime dependencies.*
 
-[![Release](https://img.shields.io/badge/release-v1.0.0-orange.svg)](release/ritu-calendar-v1.0.0.apk)
-[![Android](https://img.shields.io/badge/Platform-Android%208.0%2B%20(API%2026%2B)-green.svg)](https://developer.android.com)
-[![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20%2B%20Material%203-blue.svg)](https://developer.android.com/jetpack/compose)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean%20MVVM%20%2B%20Offline%20First-purple.svg)]()
+[![PyPI Version](https://img.shields.io/badge/pypi-v0.1.0-2ecc71.svg?style=flat-square)](https://pypi.org/project/leafcode/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-55efc4.svg?style=flat-square)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-a8e6cf.svg?style=flat-square)](LICENSE)
+[![OS: Linux | macOS | Windows](https://img.shields.io/badge/platform-cross--platform-16a085.svg?style=flat-square)](https://github.com/Hiro66-git/nevertheless)
 
----
+```text
+  _       ______          ______ _____ ____  _____  ______ 
+ | |     |  ____|   /\   |  ____/ ____/ __ \|  __ \|  ____|
+ | |     | |__     /  \  | |__ | |   | |  | | |  | | |__   
+ | |     |  __|   / /\ \ |  __|| |   | |  | | |  | |  __|  
+ | |____ | |____ / ____ \| |   | |___| |__| | |__| | |____ 
+ |______||______/_/    \_\_|    \_____\____/|_____/|______|
 
-## 🌟 Introduction
-
-**Ritu (ऋतु)** is a premier interactive Android calendar application that transforms conventional timekeeping into a cultural and astronomical experience. Rooted in traditional Indian concepts of time, astronomy, and seasons, Ritu harmonizes the **Shad-Ritu** (6 Indian seasons), **Dainik Panchang** (Tithi, Nakshatra, Yoga, Karana, Masa), **120+ Indian regional festivals** (with specialized archiving for Northeast India and Assam), and modern **personal schedule management**.
-
----
-
-## ✨ Key Features & Core Experiences
-
-### 1. 🌅 Living Today (`आज`)
-- **Living Hero Date Canvas**: Large handcrafted typography, day names in Sanskrit & English, active season badge, and regional era summaries.
-- **Dynamic Seasonal Aura**: Real-time ambient gradient response corresponding to the 6 classical seasons.
-- **Live Dainik Panchang 4 Pillars**: Real-time calculation of Tithi (with Devanagari script), Nakshatra (with planetary lord & deity), Yoga, and Karana.
-- **Sun & Moon Horizon**: NOAA-accurate Sunrise, Sunset, and Day Length along with vector-rendered Moon Phase with crater textures, illumination percentage, and lunar age.
-- **Auspicious Muhurat Bar**: Abhijit Muhurat, Brahma Muhurat, and Rahu Kaal / Yamaganda intervals calculated from local solar positions.
-- **Today's Personal Schedule**: Interactive widget with quick event creation.
-
-### 2. 📅 Interactive Month View (`मास`)
-- **High-Clarity Indian Grid**: 42-day calendar matrix with festival indicators, national holiday highlights, and moon phase symbols (🌕 Purnima, 🌑 Amavasya, ✨ Ekadashi).
-- **Smooth Navigation**: Previous/Next month switching with gesture support and seasonal color transitions.
-- **Category Filter Chips**: Filter view by All Days, 🌸 Festivals, 🏛️ Holidays, and 📌 Personal Events.
-- **Selected Day Interactive Sheet**: Instant summary card displaying full date details, local celebrations, scheduled events, and quick-add actions.
-
-### 3. 📖 Detailed Day Page (`दिन दर्शन`)
-- **Immersive Day Header**: Deep dive into any date's astronomical coordinates and seasonal characteristics.
-- **Festival Artwork Cards**: Cultural summaries, regional variations, and national holiday tags.
-- **Complete Panchang & Muhurat Breakdown**: Expanded descriptions of ruling deities, tithi qualities (Nanda, Bhadra, Jaya, Rikta, Poorna), and lunar months.
-- **Personal Chronological Timeline**: Hour-by-hour view of personal events, pujas, and meetings.
-- **Notes & Reminders Journal**: Quick local journaling with timestamped notes.
-
-### 4. 🗺️ Annual Tapestry Year View (`संवत्सर`)
-- **12-Month Progression**: Multi-month interactive grid showing seasonal transitions and festival density.
-- **Shad-Ritu Cycle Selector**: Filter and explore months by the six classical Ritus:
-  - 🌸 **Vasanta** (Spring: Chaitra - Vaishakha)
-  - ☀️ **Grishma** (Summer: Jyeshtha - Ashadha)
-  - 🌧️ **Varsha** (Monsoon: Shravana - Bhadrapada)
-  - 🌾 **Sharad** (Autumn: Ashvina - Kartika)
-  - 🍂 **Hemanta** (Pre-Winter: Margashirsha - Pausha)
-  - ❄️ **Shishira** (Winter: Magha - Phalguna)
-- **Year Highlights**: Prominent national celebrations, historical equinoxes, and solstice commemorations.
-
-### 5. 🪔 Comprehensive Festival Explorer (`उत्सव`)
-- **120+ Authentic Indian Celebrations**: Filterable by Region, Religion/Tradition, Category, and Season.
-- **Specialized Northeast & Assam Spotlight**: Rich archiving of Rongali Bihu, Kongali Bihu, Bhogali Bihu, Ambubachi Mela, Ali-Aye-Ligang, Me-Dam-Me-Phi, Hornbill Festival, Chapchar Kut, Yaoshang, and more.
-- **Dedicated Festival Experiences**:
-  - Exact Gregorian and Hindu Lunar Dates
-  - Mythological Origins & Cultural Significance
-  - Step-by-Step Sacred Rituals & Traditions
-  - Authentic Regional Recipes & Prasad (e.g. Til Pitha, Modak, Puran Poli, Thekua, Sheer Khurma, Karah Parshad)
-  - Live Countdown Timer
-
-### 6. 🏛️ Regional & Astronomical Personalization
-- **Primary Region Selection**: Pan-India, Northeast & Assam, North India, South India, East India, West India, and Central India.
-- **Multiple Regional Eras**: Automatic calculation of Vikram Samvat, Saka Samvat (National Calendar), Bhaskar Era (Assam), Bengali San, Kollam Era (Kerala), and the 60-year Tamil Jovian Cycle.
-- **City-Specific Coordinates**: Built-in coordinate calculations for New Delhi, Guwahati, Kolkata, Mumbai, Chennai, Bengaluru, Varanasi, Shillong, Imphal, Kohima, Aizawl, Puri, Ahmedabad, and Amritsar.
-
-### 7. 📌 Personal Event Management & Persistence
-- **Full CRUD Operations**: Create, view, edit, and delete personal events.
-- **Categories**: Personal, Puja & Vrat, Birthday, Anniversary, Festival Observance, Holiday, Work.
-- **Recurrence Support**: Daily, Weekly, Monthly, Yearly (Gregorian), and Lunar Annual (Vedic Tithi).
-- **Notifications & Alarms**: Scheduled local broadcast alarms with exact time reminders.
-- **Room Database**: 100% offline-first local persistence with SQLite Room DAOs.
-
-### 8. 🔍 Global Search (`खोज`)
-- Unified instant search across festivals, holidays, personal events, and cultural regions.
-- Real-time result filtering by categories.
-
-### 9. 🎨 5 Signature Design Themes
-1. **Sandalwood Dawn (Light)**: Warm ivory surfaces, sandalwood textures, and vibrant saffron accents.
-2. **Midnight Starlight (Dark)**: Deep slate obsidian, gentle starlight glows, and moonlit typography.
-3. **Indian Heritage**: Rich terracotta, temple bronze, turmeric ochre, and sacred gold.
-4. **Minimalist Slate**: Crisp monochrome surfaces with purposeful typographic hierarchy.
-5. **Festival Mode**: High-vibrancy celebratory palette with royal purple, radiant amber, and peacock teal.
-
----
-
-## 📐 Mathematical & Astronomical Foundations
-
-Ritu features a built-in mathematical ephemeris engine that eliminates the need for external network lookups:
-- **Julian Day Calculation**: Precision conversion from Gregorian calendar dates to Julian days ($J2000.0$ epoch).
-- **True Solar Longitude ($\lambda_{sun}$)**: Computed using the mean anomaly and solar equation of the center.
-- **True Lunar Longitude ($\lambda_{moon}$)**: Computed with periodic lunar perturbations (evection, variation, and annual equation).
-- **Lahiri Ayanamsha**: Official Indian National Calendar precession adjustment applied to convert tropical to sidereal coordinates ($Nirayana$).
-- **Tithi Formulation**: $Tithi = \lfloor (\lambda_{moon} - \lambda_{sun}) / 12^\circ \rfloor + 1$.
-- **Nakshatra Formulation**: $Nakshatra = \lfloor \lambda_{moon} / 13.333333^\circ \rfloor + 1$.
-- **NOAA Solar Calculation**: Rigorous solar zenith and hour angle equations for local Sunrise, Sunset, and Solar Noon.
-
----
-
-## 🏗️ Project Architecture
-
-```
-com.ritu.calendar
-├── core/
-│   ├── panchang/             # Ephemeris engine, Tithi, Nakshatra, Seasons, Muhurat, Solar algorithms
-│   ├── designsystem/
-│   │   ├── theme/            # 5 custom themes, Color palettes, Typography, Shapes
-│   │   └── components/       # Procedural Vector Mandalas, Toran borders, Moon phase canvas, Badges
-│   ├── notifications/        # AlarmManager notification scheduling & BroadcastReceiver
-│   └── utils/                # Date-time formatters and animation specs
-├── data/
-│   ├── local/                # Room DB, Entity definitions, DAOs, Type converters
-│   ├── festival/             # Festival model, 120+ festival database, Repository
-│   ├── event/                # PersonalEvent model, Categories, Recurrence rules, Repository
-│   └── settings/             # UserPreferences and settings repository
-├── navigation/               # NavGraph and Compose type-safe routing
-└── ui/
-    ├── today/                # Living Today experience & components
-    ├── month/                # Interactive Month calendar grid & bottom sheet
-    ├── day/                  # Day detailed view & Panchang timeline
-    ├── year/                 # Annual 12-month tapestry & Shad-Ritu progression
-    ├── festival/             # Festival discovery engine & rich detail views
-    ├── events/               # Event creation, editing, and details
-    ├── search/               # Global categorized search
-    └── settings/             # Regional, theme, and coordinate personalization
+ 🍃 The Botanical AI Coding Terminal • v0.1.0
+ ──────────────────────────────────────────────────────────────
+ ● Provider: GROQ          ● Active Model: llama-3.3-70b-versatile
+ ● Workspace: /my-project
+ ──────────────────────────────────────────────────────────────
 ```
 
 ---
 
-## 🚀 Download & Installation
+## 🌿 Highlights
 
-The release APK is available directly in the repository:
+- **Multi-Provider AI Engine with Free Models Support**:
+  - ⚡ **Groq** (Ultra-fast free tier: `llama-3.3-70b-versatile`, `deepseek-r1-distill-llama-70b`, `llama-3.1-8b-instant`)
+  - 🪐 **Google Gemini** (Free tier available: `gemini-2.0-flash`, `gemini-1.5-pro` with 1M–2M context)
+  - 🦙 **Ollama Local AI** (100% free & offline: `ollama/llama3.2`, `ollama/deepseek-r1`, `ollama/qwen2.5-coder`)
+  - 🌐 **OpenRouter** (Free community models: `deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free`)
+  - 🧠 **Anthropic Claude** (`claude-3-7-sonnet`, `claude-3-5-sonnet`, `claude-3-5-haiku`)
+  - 🤖 **OpenAI** (`gpt-4o`, `gpt-4o-mini`, `o3-mini`)
+  - 💨 **Mistral AI** (`codestral-latest`)
+  - 🍃 **LeafCode Offline Simulator** (Works 100% out-of-the-box with **zero API keys required**)
 
-- 📦 **Direct Download**: [`release/ritu-calendar-v1.0.0.apk`](release/ritu-calendar-v1.0.0.apk)
+- **Autonomous Agent Tool Execution**:
+  - 📄 **File Operations**: `read_file` (with line slicing), `write_file`, `edit_file` (fuzzy code patching), `list_dir`
+  - 🔍 **Search & Discovery**: `search_code` (high-speed regex/keyword grep), `find_files` (glob matching)
+  - 💻 **Safe Shell Runner**: `run_command` with interactive user confirmation or `-y` auto-confirm
+  - 🌿 **Git Integration**: `git_status`, `git_diff`, `git_log`, `git_commit`
+  - 🌐 **Web Access**: `fetch_url` (extracts plain text & markdown from documentation)
 
-To build the APK from source using Gradle:
+- **Aesthetic Botanical Terminal Experience**:
+  - Forest Emerald, Mint, Lime, Sage, and Jade ANSI truecolor gradients
+  - Sprouting seedling boot animations and pulsing leaf spinners
+  - Terminal Markdown rendering with syntax highlighting across Python, JS/TS, Rust, Go, C++, HTML/CSS, Shell, JSON, and YAML
+  - Colorized unified diff viewer with emerald additions and rose deletions
+
+- **Zero Heavy Dependencies**:
+  - Built strictly using pure Python standard library (`urllib`, `json`, `subprocess`, `difflib`, `argparse`, `pathlib`)
+  - Ultra-fast startup (<20ms) and lightweight memory footprint (<15MB)
+  - Works natively on **Linux**, **macOS**, and **Windows**.
+
+---
+
+## 🚀 Quick Start
+
+### Installation
+
+Install via PyPI:
 
 ```bash
-./gradlew assembleRelease
-# or for debug build
-./gradlew assembleDebug
+pip install leafcode
 ```
 
-To run the automated verification test suite:
+Or via `pipx` for isolated CLI usage:
 
 ```bash
-python3 test_ritu_verification.py
+pipx install leafcode
 ```
+
+Or install locally from source:
+
+```bash
+git clone https://github.com/Hiro66-git/nevertheless.git
+cd nevertheless
+pip install -e .
+```
+
+### Launch Interactive Session
+
+```bash
+leafcode
+```
+
+### One-Shot Command Execution
+
+```bash
+# Ask a quick coding question
+leafcode "How do I implement a LRU cache with threading lock in Python?"
+
+# Fix a bug in a file directly
+leafcode "Find all occurrences of deprecated API in src/ and update them to v2"
+
+# Run with auto-confirmation for tools
+leafcode -y "Run pytest and fix any failing unit tests"
+
+# Use a specific provider and model
+leafcode -p gemini -m gemini-2.0-flash "Audit this project structure"
+```
+
+---
+
+## 🔑 Free Tier API Configuration
+
+LeafCode is pre-configured to work out-of-the-box with free models. You can configure your favorite provider in seconds:
+
+### Option 1: Via LeafCode Terminal (`/config`)
+
+Launch `leafcode` and type:
+```text
+/config set groq gsk_your_groq_api_key_here
+/config set gemini AIzaSyYourGeminiKeyHere
+/config set openrouter sk-or-v1-your_openrouter_key
+```
+
+### Option 2: Via Environment Variables
+
+Add to your `~/.bashrc` or `~/.zshrc`:
+```bash
+# Groq (Free fast inference)
+export GROQ_API_KEY="gsk_..."
+
+# Google Gemini (Free tier)
+export GEMINI_API_KEY="AIzaSy..."
+
+# OpenRouter (Free community models)
+export OPENROUTER_API_KEY="sk-or-v1-..."
+
+# Anthropic / OpenAI / Mistral
+export ANTHROPIC_API_KEY="sk-ant-..."
+export OPENAI_API_KEY="sk-proj-..."
+export MISTRAL_API_KEY="..."
+```
+
+### Option 3: Local 100% Free Offline (Ollama)
+
+1. Start your local Ollama daemon: `ollama run llama3.2`
+2. In LeafCode, simply run: `/provider ollama`
+
+---
+
+## 🎮 Interactive Slash Commands
+
+| Command | Description |
+|---|---|
+| `/help` | Show interactive guide & hotkeys |
+| `/models` | Display catalog of supported models (Free & Frontier) |
+| `/provider <name>` | Switch active provider (`groq`, `gemini`, `ollama`, `openrouter`, `openai`, `anthropic`, `mock`) |
+| `/model <name>` | Switch active model (`llama-3.3-70b-versatile`, `gemini-2.0-flash`, `gpt-4o`, etc.) |
+| `/config` | View active settings and API keys status |
+| `/config set <provider> <key>` | Save an API key securely to `~/.leafcode/config.json` |
+| `/clear` | Clear the current conversation context memory |
+| `/sessions` | List saved conversation sessions |
+| `/export` | Export the current session transcript to Markdown |
+| `/bonsai` | Display colorized ASCII botanical bonsai artwork |
+| `/exit` | Exit the LeafCode session |
+
+---
+
+## 🛠️ CLI Options
+
+```text
+usage: leafcode [-h] [-p PROVIDER] [-m MODEL] [-y] [--models] [--config] [--tree] [-v] [prompt ...]
+
+🍃 LeafCode — The Botanical AI Coding Terminal Assistant
+
+positional arguments:
+  prompt                Direct prompt to execute in one-shot mode.
+
+options:
+  -h, --help            show this help message and exit
+  -p PROVIDER, --provider PROVIDER
+                        Specify AI provider (groq, gemini, ollama, openrouter, openai, anthropic, mock)
+  -m MODEL, --model MODEL
+                        Specify active model name
+  -y, --yes             Auto-confirm all tool executions without prompting
+  --models              List all supported models and exit
+  --config              Show active configuration and exit
+  --tree                Display botanical ASCII art
+  -v, --version         show program's version number and exit
+```
+
+---
+
+## 🧪 Testing
+
+Run the full automated test suite:
+
+```bash
+python3 run_tests.py
+```
+
+All 25 test cases run across config, providers, tools, agent ReAct loop, terminal UI, and CLI argument parsing.
 
 ---
 
 ## 📜 License
-Licensed under the [Apache License, Version 2.0](LICENSE).
+
+MIT License © 2026 [Hiro66-git](https://github.com/Hiro66-git) & LeafCode Contributors.

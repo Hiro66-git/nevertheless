@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include setup.cfg
+recursive-include leafcode *.py
+recursive-include tests *.py
