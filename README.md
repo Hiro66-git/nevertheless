@@ -82,6 +82,8 @@ The implementation is organized as gates. A gate is not considered complete unti
 - React + TypeScript + Vite boot the editor shell.
 - Renderer Node integration is disabled; `contextIsolation` is enabled.
 - Professional dark layout is available in browser and desktop mode.
+- Persistent Three.js runtime is separated from React in `src/editor/scene/sceneRuntime.ts`.
+- `ThreeViewport.tsx` is now a thin React adapter over the runtime registry.
 
 **Test gate**
 
@@ -226,13 +228,20 @@ Branch URL: [`arena/01a0dcf1-nevertheless`](https://github.com/Hiro66-git/nevert
 │   ├── main.cjs              # BrowserWindow, native dialogs, IPC handlers
 │   └── preload.cjs           # Minimal contextBridge API
 ├── src/
-│   ├── App.tsx               # Editor composition and feature components
+│   ├── App.tsx               # Existing editor composition and feature panels
 │   ├── main.tsx              # Renderer entry point
 │   ├── env.d.ts              # Typed preload bridge
 │   ├── types.ts              # Scene and editor domain types
+│   ├── editor/
+│   │   ├── scene/
+│   │   │   └── sceneRuntime.ts       # Persistent Three.js runtime + registry
+│   │   └── viewport/
+│   │       └── ThreeViewport.tsx     # Thin React/runtime adapter
 │   └── state/
 │       └── editorStore.ts    # Zustand scene state and history
-├── docs/                     # Static production build for Pages / hosting
+├── docs/
+│   ├── architecture-audit.md # Phase 0 audit and refactor order
+│   └── ...                   # Static production build for Pages / hosting
 ├── index.html                # Vite renderer entry
 ├── vite.config.ts            # Browser-safe base + proxied host config
 └── package.json
@@ -257,7 +266,7 @@ The viewport caps device pixel ratio at `2`, uses an explicit WebGL renderer, an
 | Phase | Implemented | Files / systems | Verified with | Known issue |
 | --- | --- | --- | --- | --- |
 | 1 | Foundation shell + Electron boundary | `electron/*`, `src/main.tsx`, `vite.config.ts` | `npm run build`, dev-server HTTP check | Electron launch could not download its runtime binary in this sandbox |
-| 2 | Three.js scene + picking + gizmos | `src/App.tsx`, `src/types.ts` | `npm run build`, manual viewport check | Complex imported geometry is not in scope yet |
+| 2 | Three.js scene + picking + gizmos | `src/editor/scene/sceneRuntime.ts`, `src/editor/viewport/ThreeViewport.tsx` | `npm run build`, manual viewport check | Complex imported geometry is not in scope yet |
 | 3 | Shared Zustand state + history | `src/state/editorStore.ts` | `npm run build`, manual undo/redo | Grouping is deferred |
 | 4 | `.wfv` serialization + dialog bridge | `src/state/editorStore.ts`, `electron/*` | `npm run build` | Autosave and packaged reopen test remain |
 | 5 | Asset surface only | `src/App.tsx` | `npm run build` | Import-to-scene and disposal remain |
