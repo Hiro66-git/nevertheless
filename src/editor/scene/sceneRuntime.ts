@@ -132,6 +132,7 @@ export class SceneRuntime {
       if (!incomingIds.has(id)) this.removeEntity(id, entity)
     }
 
+    this.syncHierarchy(objects)
     this.syncSelection()
   }
 
@@ -148,7 +149,7 @@ export class SceneRuntime {
   setTransformTool(tool: Tool) {
     const mode = transformModeForTool(tool)
     const selected = this.selectedId ? this.registry.get(this.selectedId) : undefined
-    if (!mode || !selected || !selected.source.visible || selected.source.locked) {
+    if (!mode || !selected || !selected.object3D.visible || selected.source.locked || selected.object3D.userData.effectiveLocked) {
       this.transformControls.detach()
       this.renderer.domElement.style.cursor = tool === 'hand' ? 'grab' : tool === 'select' ? 'default' : 'crosshair'
       return
@@ -183,7 +184,7 @@ export class SceneRuntime {
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
     this.raycaster.setFromCamera(this.pointer, this.camera)
     const pickable = Array.from(this.registry.values())
-      .filter((entity) => entity.source.visible)
+      .filter((entity) => entity.object3D.visible)
       .map((entity) => entity.object3D)
     const hit = this.raycaster.intersectObjects(pickable, true)[0]?.object
     if (!hit) return
@@ -329,10 +330,37 @@ export class SceneRuntime {
     if (this.selectedId === id) this.clearSelectionHelper()
   }
 
+  private syncHierarchy(objects: SceneObject[]) {
+    const byId = new Map(objects.map((object) => [object.id, object]))
+    const inheritedState = (object: SceneObject) => {
+      let current: SceneObject | undefined = object
+      let visible = true
+      let locked = false
+      const visited = new Set<string>()
+      while (current && !visited.has(current.id)) {
+        visited.add(current.id)
+        visible = visible && current.visible
+        locked = locked || current.locked
+        current = current.parentId ? byId.get(current.parentId) : undefined
+      }
+      return { visible, locked }
+    }
+    for (const object of objects) {
+      const entity = this.registry.get(object.id)
+      if (!entity) continue
+      const parent = object.parentId ? this.registry.get(object.parentId)?.object3D : undefined
+      const desiredParent = parent ?? this.stage
+      if (entity.object3D.parent !== desiredParent) desiredParent.add(entity.object3D)
+      const state = inheritedState(object)
+      entity.object3D.visible = state.visible
+      entity.object3D.userData.effectiveLocked = state.locked
+    }
+  }
+
   private syncSelection() {
     this.clearSelectionHelper()
     const selected = this.selectedId ? this.registry.get(this.selectedId) : undefined
-    if (selected?.source.visible) {
+    if (selected?.object3D.visible) {
       this.selectionHelper = new THREE.BoxHelper(selected.object3D, new THREE.Color('#73ebd0'))
       this.selectionHelper.renderOrder = 3
       this.stage.add(this.selectionHelper)

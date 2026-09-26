@@ -68,7 +68,7 @@ function App() {
   const {
     mode, setMode, activeTool, setTool, selectedId, selectObject, objects, projectName, setDevice, device,
     snapToGrid, toggleSnap, showGrid, toggleGrid, undo, redo, past, future, saveProject, projectDirty,
-    currentTime, setTime, isPlaying, togglePlaying, duplicateSelected, deleteSelected, addKeyframe,
+    currentTime, setTime, isPlaying, togglePlaying, duplicateSelected, deleteSelected, groupSelected, addKeyframe,
   } = useEditorStore()
   const selected = objects.find((object) => object.id === selectedId) ?? null
 
@@ -108,9 +108,11 @@ function App() {
   const handleOpenFile = (file: File) => {
     const reader = new FileReader()
     reader.onload = () => {
-      useEditorStore.getState().loadProject(String(reader.result))
-      notify('Project loaded')
+      const loaded = useEditorStore.getState().loadProject(String(reader.result))
+      const error = useEditorStore.getState().lastError
+      notify(loaded ? 'Project loaded' : `Project load failed: ${error ?? 'invalid file'}`)
     }
+    reader.onerror = () => notify('Project load failed: unable to read file')
     reader.readAsText(file)
   }
 
@@ -121,7 +123,11 @@ function App() {
   const openProject = () => {
     if (window.webforge) {
       void window.webforge.openProject().then((result) => {
-        if (result.payload) { useEditorStore.getState().loadProject(result.payload); notify('Project loaded from disk') }
+        if (result.payload) {
+          const loaded = useEditorStore.getState().loadProject(result.payload)
+          const error = useEditorStore.getState().lastError
+          notify(loaded ? 'Project loaded from disk' : `Project load failed: ${error ?? 'invalid file'}`)
+        }
       })
       return
     }
@@ -135,6 +141,8 @@ function App() {
       if (modifier && event.key.toLowerCase() === 'o') { event.preventDefault(); openProject(); return }
       if (modifier && event.key.toLowerCase() === 'k') { event.preventDefault(); setCommandOpen(true); return }
       if (modifier && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); return }
+      if (modifier && event.key.toLowerCase() === 'd') { event.preventDefault(); duplicateSelected(); notify('Layer duplicated'); return }
+      if (modifier && event.key.toLowerCase() === 'g') { event.preventDefault(); groupSelected(); notify('Selection grouped'); return }
       if (event.key === 'Delete' && selectedId) { deleteSelected(); notify('Layer deleted'); return }
       if (event.key === 'Escape') { setCommandOpen(false); return }
       const shortcuts: Record<string, Tool> = { v: 'select', g: 'move', r: 'rotate', s: 'scale', h: 'hand' }
@@ -144,7 +152,7 @@ function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [deleteSelected, redo, undo, setTool, selectedId, togglePlaying])
+  }, [deleteSelected, duplicateSelected, groupSelected, redo, undo, setTool, selectedId, togglePlaying])
 
   useEffect(() => {
     if (!isPlaying) return
@@ -279,8 +287,8 @@ function Timeline({ objects, currentTime, setTime, isPlaying, togglePlaying, sel
 }
 
 function CommandPalette({ open, close, onAction, notify }: { open: boolean; close: () => void; onAction: (action: () => void) => void; notify: (message: string) => void }) {
-  const { setTool, addObject, setMode, setDevice, resetScene, duplicateSelected, deleteSelected } = useEditorStore()
-  const commands = [{ icon: 'select', label: 'Select tool', shortcut: 'V', action: () => setTool('select') }, { icon: 'move', label: 'Move tool', shortcut: 'G', action: () => setTool('move') }, { icon: 'cube', label: 'Add mesh', shortcut: '', action: () => addObject('mesh', 'box') }, { icon: 'light', label: 'Add light', shortcut: '', action: () => addObject('light') }, { icon: 'layers', label: 'Duplicate selected', shortcut: '⌘D', action: () => duplicateSelected() }, { icon: 'eyeOff', label: 'Delete selected', shortcut: '⌫', action: () => deleteSelected() }, { icon: 'code', label: 'Open code view', shortcut: '', action: () => setMode('code') }, { icon: 'monitor', label: 'Desktop preview', shortcut: '', action: () => setDevice('desktop') }, { icon: 'settings', label: 'Reset scene', shortcut: '', action: () => resetScene() }]
+  const { setTool, addObject, setMode, setDevice, resetScene, duplicateSelected, deleteSelected, groupSelected, ungroupSelected } = useEditorStore()
+  const commands = [{ icon: 'select', label: 'Select tool', shortcut: 'V', action: () => setTool('select') }, { icon: 'move', label: 'Move tool', shortcut: 'G', action: () => setTool('move') }, { icon: 'cube', label: 'Add mesh', shortcut: '', action: () => addObject('mesh', 'box') }, { icon: 'light', label: 'Add light', shortcut: '', action: () => addObject('light') }, { icon: 'layers', label: 'Duplicate selected', shortcut: '⌘D', action: () => duplicateSelected() }, { icon: 'layers', label: 'Group selected', shortcut: '⌘G', action: () => groupSelected() }, { icon: 'layers', label: 'Ungroup selected', shortcut: '', action: () => ungroupSelected() }, { icon: 'eyeOff', label: 'Delete selected', shortcut: '⌫', action: () => deleteSelected() }, { icon: 'code', label: 'Open code view', shortcut: '', action: () => setMode('code') }, { icon: 'monitor', label: 'Desktop preview', shortcut: '', action: () => setDevice('desktop') }, { icon: 'settings', label: 'Reset scene', shortcut: '', action: () => resetScene() }]
   if (!open) return null
   return <div className="modal-backdrop" onMouseDown={close}><div className="command-palette" onMouseDown={(event) => event.stopPropagation()}><div className="command-search"><Icon name="search" /><input autoFocus placeholder="Search tools, layers, assets…" /><kbd>ESC</kbd></div><div className="command-section-label">QUICK ACTIONS</div>{commands.map((command, i) => <button key={command.label} className={`command-row ${i === 0 ? 'focused' : ''}`} onClick={() => onAction(() => { command.action(); notify(`${command.label} ready`) })}><span className="command-icon"><Icon name={command.icon} size={15} /></span><span>{command.label}</span>{command.shortcut && <kbd>{command.shortcut}</kbd>}</button>)}<div className="command-footer"><span>↑↓ Navigate</span><span>↵ Run command</span><span>⌘K Toggle</span></div></div></div>
 }

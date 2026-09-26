@@ -48,12 +48,13 @@ This repository intentionally ships a verified vertical slice instead of pretend
 | Area | Working slice |
 | --- | --- |
 | Editor shell | Dark workspace, tool rail, layers, inspector, canvas toolbar, timeline, code view |
-| Three.js viewport | WebGL renderer, camera, orbit controls, lighting, grid, fog, selection outline |
-| Transform editing | Numeric transform fields and move / rotate / scale gizmos |
-| Scene state | Typed Zustand store shared by hierarchy, inspector, timeline, and viewport |
-| Layer workflow | Select, duplicate, delete, hide, lock, add mesh/light, reset scene |
-| History | Undo / redo snapshots with keyboard shortcuts |
-| Project files | Browser `.wfv` download/open plus native Electron save/open bridge |
+| Three.js viewport | Persistent WebGL runtime, camera, orbit controls, lighting, grid, fog, selection outline |
+| Transform editing | Numeric transform fields and move / rotate / scale gizmos with one command per drag |
+| Editor document | Version 2 document with stable entities, hierarchy, materials, assets, animations, and settings |
+| Scene state | Typed Zustand adapter shared by hierarchy, inspector, timeline, and viewport |
+| Layer workflow | Select, duplicate, delete, hide, lock, add mesh/light, reset, group, ungroup |
+| History | Bounded command-based undo / redo |
+| Project files | Version 2 `.wfv` serialization, legacy version 1 migration, browser/native open/save bridge |
 | Animation | Timeline playhead, playback, scrubbing, keyframe creation |
 | Output | Preview window and standalone HTML export |
 | Desktop shell | Electron main/preload split with `contextIsolation` and no renderer Node access (launch check pending binary availability) |
@@ -76,7 +77,7 @@ When a feature is only an affordance in the UI, it should be treated as **experi
 
 The implementation is organized as gates. A gate is not considered complete until TypeScript compilation and the production build pass.
 
-### Phase 1 — Foundation · **browser verified / Electron launch pending**
+### Phase 1 — Foundation + editor core · **browser verified / Electron launch pending**
 
 - Electron main, preload, and renderer boundaries are present.
 - React + TypeScript + Vite boot the editor shell.
@@ -84,6 +85,8 @@ The implementation is organized as gates. A gate is not considered complete unti
 - Professional dark layout is available in browser and desktop mode.
 - Persistent Three.js runtime is separated from React in `src/editor/scene/sceneRuntime.ts`.
 - `ThreeViewport.tsx` is now a thin React adapter over the runtime registry.
+- Version 2 editor document and real parent/child relationships are present.
+- Scene mutations use execute/undo command objects instead of full-scene history snapshots.
 
 **Test gate**
 
@@ -110,11 +113,12 @@ npm run build
 
 Manual check: select a layer, switch to `G`, `R`, or `S`, drag the gizmo, then confirm the inspector values update.
 
-### Phase 3 — Editor state · **verified vertical slice**
+### Phase 3 — Editor state and commands · **verified vertical slice**
 
-- Typed Zustand scene store shared by the viewport, hierarchy, inspector, and timeline.
-- Undo / redo snapshot history.
-- Duplicate, delete, hide, lock, reset, serialization, and selection state.
+- Typed Zustand adapter backed by the version 2 editor document.
+- Bounded execute/undo/redo command history.
+- Duplicate, delete, hide, lock, group, ungroup, reset, serialization, and selection state.
+- TransformControls drag commits one transform command on release.
 
 **Test gate**
 
@@ -124,11 +128,12 @@ npm run build
 
 ### Phase 4 — Project system · **partially verified**
 
-- `.wfv` JSON payloads serialize scene objects.
+- Version 2 `.wfv` JSON payloads serialize the editor document, hierarchy, material registry, settings, and animation section.
+- Legacy version 1 `{ projectName, objects }` payloads migrate on load.
 - Browser save/open works through downloads and a file input.
 - Electron preload exposes native `project:save-as` and `project:open` IPC handlers.
 
-**Still open:** Save As polish, autosave, and a full reopen test inside a packaged Electron window.
+**Still open:** schema validation depth, Save As polish, autosave, and a full reopen test inside a packaged Electron window.
 
 ### Phase 5 — Assets · **experimental**
 
@@ -233,12 +238,16 @@ Branch URL: [`arena/01a0dcf1-nevertheless`](https://github.com/Hiro66-git/nevert
 │   ├── env.d.ts              # Typed preload bridge
 │   ├── types.ts              # Scene and editor domain types
 │   ├── editor/
+│   │   ├── commands/          # Undoable scene commands
+│   │   ├── core/              # Editor core boundary notes
+│   │   ├── document/          # Version 2 document and hierarchy operations
+│   │   ├── history/           # Bounded command history helper
 │   │   ├── scene/
 │   │   │   └── sceneRuntime.ts       # Persistent Three.js runtime + registry
 │   │   └── viewport/
 │   │       └── ThreeViewport.tsx     # Thin React/runtime adapter
 │   └── state/
-│       └── editorStore.ts    # Zustand scene state and history
+│       └── editorStore.ts    # Zustand document adapter and UI state
 ├── docs/
 │   ├── architecture-audit.md # Phase 0 audit and refactor order
 │   └── ...                   # Static production build for Pages / hosting
@@ -266,9 +275,9 @@ The viewport caps device pixel ratio at `2`, uses an explicit WebGL renderer, an
 | Phase | Implemented | Files / systems | Verified with | Known issue |
 | --- | --- | --- | --- | --- |
 | 1 | Foundation shell + Electron boundary | `electron/*`, `src/main.tsx`, `vite.config.ts` | `npm run build`, dev-server HTTP check | Electron launch could not download its runtime binary in this sandbox |
-| 2 | Three.js scene + picking + gizmos | `src/editor/scene/sceneRuntime.ts`, `src/editor/viewport/ThreeViewport.tsx` | `npm run build`, manual viewport check | Complex imported geometry is not in scope yet |
-| 3 | Shared Zustand state + history | `src/state/editorStore.ts` | `npm run build`, manual undo/redo | Grouping is deferred |
-| 4 | `.wfv` serialization + dialog bridge | `src/state/editorStore.ts`, `electron/*` | `npm run build` | Autosave and packaged reopen test remain |
+| 2 | Persistent Three.js scene + picking + gizmos | `src/editor/scene/sceneRuntime.ts`, `src/editor/viewport/ThreeViewport.tsx` | `npm run build`, dev-server smoke test | Complex imported geometry is not in scope yet |
+| 3 | Version 2 document + command history | `src/editor/document/*`, `src/editor/commands/*`, `src/state/editorStore.ts` | `npm run build`, manual command paths | Numeric inspector transaction grouping remains |
+| 4 | `.wfv` serialization + dialog bridge | `src/editor/document/*`, `src/state/editorStore.ts`, `electron/*` | `npm run build` | Schema validation, autosave and packaged reopen test remain |
 | 5 | Asset surface only | `src/App.tsx` | `npm run build` | Import-to-scene and disposal remain |
 | 6 | Timeline vertical slice | `src/App.tsx`, `src/state/editorStore.ts` | `npm run build` | Interpolation and easing remain |
 | 7 | Generated code view + preview | `src/App.tsx` | `npm run build` | Monaco and two-way sync remain |
