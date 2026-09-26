@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import { projectPayload, useEditorStore } from './state/editorStore'
 import type { Device, EditorMode, ObjectKind, SceneObject, Tool } from './types'
 
@@ -116,7 +117,7 @@ function App() {
   }
 
   const handleAssetImport = (file: File) => {
-    notify(`${file.name} added to the asset library`)
+    notify(`${file.name} received — scene attachment is experimental`)
   }
 
   const openProject = () => {
@@ -189,7 +190,7 @@ function App() {
         <div className="workspace-tabs">
           {(['design', 'motion', 'code'] as EditorMode[]).map((item) => <button key={item} className={`workspace-tab ${mode === item ? 'active' : ''}`} onClick={() => { setMode(item); if (item === 'code') setInspectorTab('code') }}>{item}<span className="tab-underline" /></button>)}
         </div>
-        <div className="workspace-meta"><span className="live-pulse" /> Live sync <span className="meta-divider" /> <button onClick={() => notify('Workspace settings are ready for your team')}><Icon name="settings" size={14} /></button></div>
+        <div className="workspace-meta"><span className="live-pulse" /> Live sync <span className="meta-divider" /> <button onClick={() => notify('Experimental: workspace settings are not wired yet')}><Icon name="settings" size={14} /></button></div>
       </div>
 
       <main className="editor-layout">
@@ -198,15 +199,15 @@ function App() {
             <div className="tool-section-label">TOOLS</div>
             {toolList.map((tool) => <button key={tool.id} className={`tool-button ${activeTool === tool.id ? 'active' : ''}`} onClick={() => setTool(tool.id)} title={`${tool.label} (${tool.shortcut})`}><Icon name={tool.icon} /><span>{tool.label}</span><kbd>{tool.shortcut}</kbd></button>)}
             <div className="tool-spacer" />
-            <button className="tool-button" onClick={() => notify('Guides are enabled for this composition')}><Icon name="snap" /><span>Guides</span></button>
+            <button className="tool-button" onClick={() => notify('Experimental: guides are not wired yet')}><Icon name="snap" /><span>Guides</span></button>
             <button className="tool-button" onClick={() => setCommandOpen(true)}><Icon name="search" /><span>Command</span><kbd>⌘K</kbd></button>
           </div>
           <div className="left-content">
-            <div className="panel-heading"><div><span className="eyebrow">SCENE</span><h2>Layers</h2></div><button className="small-icon" onClick={() => notify('Layer options opened')}><Icon name="more" /></button></div>
-            <div className="scene-toolbar"><div className="search-field"><Icon name="search" size={14} /><input placeholder="Search layers" /></div><button className="square-button" onClick={() => notify('New collection created')}><Icon name="plus" size={15} /></button></div>
-            <div className="collection-row"><Icon name="chevron" size={13} /><Icon name="layers" size={14} /><span>Landing / Hero</span><span className="collection-count">{objects.length}</span><button onClick={() => notify('Collection menu opened')}><Icon name="more" size={13} /></button></div>
+            <div className="panel-heading"><div><span className="eyebrow">SCENE</span><h2>Layers</h2></div><button className="small-icon" onClick={() => notify('Experimental: layer options are not wired yet')}><Icon name="more" /></button></div>
+            <div className="scene-toolbar"><div className="search-field"><Icon name="search" size={14} /><input placeholder="Search layers" /></div><button className="square-button" onClick={() => notify('Experimental: collections are not wired yet')}><Icon name="plus" size={15} /></button></div>
+            <div className="collection-row"><Icon name="chevron" size={13} /><Icon name="layers" size={14} /><span>Landing / Hero</span><span className="collection-count">{objects.length}</span><button onClick={() => notify('Experimental: collection menus are not wired yet')}><Icon name="more" size={13} /></button></div>
             <div className="layer-list">{objects.map((object) => <LayerRow key={object.id} object={object} selected={object.id === selectedId} onSelect={() => selectObject(object.id)} />)}</div>
-            <button className="add-layer-button" onClick={() => notify('Choose an object type from the insert menu')}><Icon name="plus" size={14} /> Add layer</button>
+            <button className="add-layer-button" onClick={() => setCommandOpen(true)}><Icon name="plus" size={14} /> Add layer</button>
             <div className="panel-heading assets-heading"><div><span className="eyebrow">LIBRARY</span><h2>Assets</h2></div><button className="small-icon" onClick={() => setAssetsOpen(!assetsOpen)}><Icon name={assetsOpen ? 'down' : 'chevron'} size={14} /></button></div>
             {assetsOpen ? <AssetBrowser onImport={() => assetFileRef.current?.click()} /> : <AssetSummary onOpen={() => setAssetsOpen(true)} />}
           </div>
@@ -215,7 +216,7 @@ function App() {
         <section className="canvas-column">
           <div className="canvas-toolbar">
             <div className="canvas-tabs"><button className="canvas-tab active"><span className="tab-status" /> Main scene <Icon name="down" size={12} /></button><button className="canvas-tab muted">Preview / 1440 × 900</button></div>
-            <div className="canvas-controls"><button className="control-select" onClick={() => notify('Perspective camera selected')}><Icon name="camera" size={14} /> Perspective <Icon name="down" size={12} /></button><button className={`control-toggle ${showGrid ? 'on' : ''}`} onClick={toggleGrid}><Icon name="grid" size={14} /> Grid</button><button className={`control-toggle ${snapToGrid ? 'on' : ''}`} onClick={toggleSnap}><Icon name="snap" size={14} /> Snap</button><div className="toolbar-divider" /><button className="viewport-icon" onClick={() => notify('Viewport framed to selection')}><span className="frame-icon" /></button><button className="viewport-icon" onClick={() => notify('Viewport options opened')}><Icon name="more" /></button></div>
+            <div className="canvas-controls"><button className="control-select" onClick={() => notify('Experimental: camera selector is not wired yet')}><Icon name="camera" size={14} /> Perspective <Icon name="down" size={12} /></button><button className={`control-toggle ${showGrid ? 'on' : ''}`} onClick={toggleGrid}><Icon name="grid" size={14} /> Grid</button><button className={`control-toggle ${snapToGrid ? 'on' : ''}`} onClick={toggleSnap}><Icon name="snap" size={14} /> Snap</button><div className="toolbar-divider" /><button className="viewport-icon" onClick={() => notify('Experimental: frame-to-selection is not wired yet')}><span className="frame-icon" /></button><button className="viewport-icon" onClick={() => notify('Experimental: viewport options are not wired yet')}><Icon name="more" /></button></div>
           </div>
           <div className="canvas-stage">
             <ThreeViewport />
@@ -227,7 +228,7 @@ function App() {
         </section>
 
         <aside className="right-sidebar">
-          <div className="inspector-tabs"><button className={inspectorTab === 'properties' ? 'active' : ''} onClick={() => setInspectorTab('properties')}>Inspector</button><button className={inspectorTab === 'code' ? 'active' : ''} onClick={() => setInspectorTab('code')}><Icon name="code" size={14} /> Code</button><button className="tab-more" onClick={() => notify('Inspector layout options opened')}><Icon name="more" size={14} /></button></div>
+          <div className="inspector-tabs"><button className={inspectorTab === 'properties' ? 'active' : ''} onClick={() => setInspectorTab('properties')}>Inspector</button><button className={inspectorTab === 'code' ? 'active' : ''} onClick={() => setInspectorTab('code')}><Icon name="code" size={14} /> Code</button><button className="tab-more" onClick={() => notify('Experimental: inspector layout options are not wired yet')}><Icon name="more" size={14} /></button></div>
           {inspectorTab === 'code' || mode === 'code' ? <CodeInspector objects={objects} onBack={() => { setInspectorTab('properties'); setMode('design') }} /> : <Inspector object={selected} currentTime={currentTime} onNotify={notify} onAddKeyframe={() => selected && addKeyframe(selected.id)} />}
         </aside>
       </main>
@@ -262,6 +263,7 @@ function ThreeViewport() {
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const controlsRef = useRef<OrbitControls | null>(null)
+  const transformControlsRef = useRef<TransformControls | null>(null)
   const frameRef = useRef<number>(0)
   const { objects, selectedId, selectObject, showGrid, activeTool } = useEditorStore()
   const meshMapRef = useRef(new Map<string, THREE.Object3D>())
@@ -289,6 +291,21 @@ function ThreeViewport() {
     controls.minDistance = 3.5
     controls.maxDistance = 14
     controls.enablePan = true
+    const transformControls = new TransformControls(camera, renderer.domElement)
+    transformControls.setSize(0.82)
+    const transformHelper = transformControls.getHelper()
+    transformControls.addEventListener('dragging-changed', (event) => {
+      controls.enabled = !event.value
+      if (event.value || !transformControls.object) return
+      const objectId = transformControls.object.userData.objectId as string | undefined
+      if (!objectId) return
+      const visual = transformControls.object
+      useEditorStore.getState().updateObject(objectId, {
+        position: [visual.position.x, visual.position.y, visual.position.z],
+        rotation: [visual.rotation.x, visual.rotation.y, visual.rotation.z],
+        scale: [visual.scale.x, visual.scale.y, visual.scale.z],
+      })
+    })
     const ambient = new THREE.HemisphereLight('#d9ecff', '#12151f', 1.45)
     scene.add(ambient)
     const fill = new THREE.DirectionalLight('#9ea9ff', 2.2)
@@ -306,6 +323,8 @@ function ThreeViewport() {
     scene.add(grid)
     const stage = new THREE.Group()
     scene.add(stage)
+    scene.add(transformHelper)
+    transformControlsRef.current = transformControls
     sceneRef.current = scene; cameraRef.current = camera; rendererRef.current = renderer; controlsRef.current = controls
 
     const resize = () => {
@@ -315,7 +334,7 @@ function ThreeViewport() {
     const observer = new ResizeObserver(resize); observer.observe(mount); resize()
     const animate = () => { frameRef.current = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera) }
     animate()
-    return () => { cancelAnimationFrame(frameRef.current); observer.disconnect(); controls.dispose(); renderer.dispose(); mount.removeChild(renderer.domElement); scene.clear() }
+    return () => { cancelAnimationFrame(frameRef.current); observer.disconnect(); controls.dispose(); transformControls.dispose(); scene.remove(transformHelper); renderer.dispose(); mount.removeChild(renderer.domElement); scene.clear() }
   }, [])
 
   useEffect(() => {
@@ -351,6 +370,20 @@ function ThreeViewport() {
   }, [objects, selectedId, showGrid])
 
   useEffect(() => {
+    const gizmo = transformControlsRef.current
+    if (!gizmo) return
+    const selected = selectedId ? useEditorStore.getState().objects.find((object) => object.id === selectedId) : null
+    const visual = selectedId ? meshMapRef.current.get(selectedId) : undefined
+    const isTransformTool = activeTool === 'move' || activeTool === 'rotate' || activeTool === 'scale'
+    if (!visual || !selected || selected.locked || !isTransformTool) {
+      gizmo.detach()
+      return
+    }
+    gizmo.setMode(activeTool === 'move' ? 'translate' : activeTool)
+    gizmo.attach(visual)
+  }, [activeTool, selectedId, objects])
+
+  useEffect(() => {
     const mount = mountRef.current; const renderer = rendererRef.current; const camera = cameraRef.current
     if (!mount || !renderer || !camera) return
     const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2()
@@ -373,12 +406,12 @@ function Inspector({ object, currentTime, onNotify, onAddKeyframe }: { object: S
   const { updateObject, updateTransform } = useEditorStore()
   if (!object) return <div className="empty-inspector"><div className="empty-orbit"><Icon name="select" size={22} /></div><strong>Select an object</strong><span>Choose a layer or click an object in the viewport to edit its properties.</span></div>
   return <div className="inspector-content">
-    <div className="selection-header"><div className={`selection-icon kind-${object.kind}`}><Icon name={object.kind === 'light' ? 'light' : object.kind === 'text' ? 'text' : 'cube'} size={17} /></div><div><div className="selection-name">{object.name}</div><div className="selection-type">{object.kind === 'mesh' ? `Mesh · ${object.shape}` : object.kind}</div></div><button className="small-icon" onClick={() => onNotify('More object actions opened')}><Icon name="more" /></button></div>
-    <div className="property-section open"><SectionHeader label="Transform" icon="move" /><div className="transform-grid"><TransformField label="X" value={object.position[0]} onChange={(value) => updateTransform(object.id, 'position', 0, value)} /><TransformField label="Y" value={object.position[1]} onChange={(value) => updateTransform(object.id, 'position', 1, value)} /><TransformField label="Z" value={object.position[2]} onChange={(value) => updateTransform(object.id, 'position', 2, value)} /></div><div className="transform-row-label"><span>Rotation</span><button onClick={() => onNotify('Rotation reset to zero')}>Reset</button></div><div className="transform-grid"><TransformField label="X" value={radToDeg(object.rotation[0])} suffix="°" onChange={(value) => updateTransform(object.id, 'rotation', 0, degToRad(value))} /><TransformField label="Y" value={radToDeg(object.rotation[1])} suffix="°" onChange={(value) => updateTransform(object.id, 'rotation', 1, degToRad(value))} /><TransformField label="Z" value={radToDeg(object.rotation[2])} suffix="°" onChange={(value) => updateTransform(object.id, 'rotation', 2, degToRad(value))} /></div><div className="transform-row-label"><span>Scale <button className="link-icon" onClick={() => onNotify('Scale linked')}><span className="link-shape">∞</span></button></span><button onClick={() => onNotify('Scale reset to one')}>Reset</button></div><div className="transform-grid"><TransformField label="X" value={object.scale[0]} onChange={(value) => updateTransform(object.id, 'scale', 0, value)} /><TransformField label="Y" value={object.scale[1]} onChange={(value) => updateTransform(object.id, 'scale', 1, value)} /><TransformField label="Z" value={object.scale[2]} onChange={(value) => updateTransform(object.id, 'scale', 2, value)} /></div></div>
+    <div className="selection-header"><div className={`selection-icon kind-${object.kind}`}><Icon name={object.kind === 'light' ? 'light' : object.kind === 'text' ? 'text' : 'cube'} size={17} /></div><div><div className="selection-name">{object.name}</div><div className="selection-type">{object.kind === 'mesh' ? `Mesh · ${object.shape}` : object.kind}</div></div><button className="small-icon" onClick={() => onNotify('Experimental: object actions are not wired yet')}><Icon name="more" /></button></div>
+    <div className="property-section open"><SectionHeader label="Transform" icon="move" /><div className="transform-grid"><TransformField label="X" value={object.position[0]} onChange={(value) => updateTransform(object.id, 'position', 0, value)} /><TransformField label="Y" value={object.position[1]} onChange={(value) => updateTransform(object.id, 'position', 1, value)} /><TransformField label="Z" value={object.position[2]} onChange={(value) => updateTransform(object.id, 'position', 2, value)} /></div><div className="transform-row-label"><span>Rotation</span><button onClick={() => updateObject(object.id, { rotation: [0, 0, 0] })}>Reset</button></div><div className="transform-grid"><TransformField label="X" value={radToDeg(object.rotation[0])} suffix="°" onChange={(value) => updateTransform(object.id, 'rotation', 0, degToRad(value))} /><TransformField label="Y" value={radToDeg(object.rotation[1])} suffix="°" onChange={(value) => updateTransform(object.id, 'rotation', 1, degToRad(value))} /><TransformField label="Z" value={radToDeg(object.rotation[2])} suffix="°" onChange={(value) => updateTransform(object.id, 'rotation', 2, degToRad(value))} /></div><div className="transform-row-label"><span>Scale <button className="link-icon" onClick={() => onNotify('Experimental: linked scaling is not wired yet')}><span className="link-shape">∞</span></button></span><button onClick={() => updateObject(object.id, { scale: [1, 1, 1] })}>Reset</button></div><div className="transform-grid"><TransformField label="X" value={object.scale[0]} onChange={(value) => updateTransform(object.id, 'scale', 0, value)} /><TransformField label="Y" value={object.scale[1]} onChange={(value) => updateTransform(object.id, 'scale', 1, value)} /><TransformField label="Z" value={object.scale[2]} onChange={(value) => updateTransform(object.id, 'scale', 2, value)} /></div></div>
     <div className="property-section open"><SectionHeader label="Appearance" icon="eye" /><div className="color-row"><div className="color-swatch" style={{ background: object.color }} /><div><span className="field-label">Color</span><span className="color-value">{object.color.toUpperCase()}</span></div><input className="native-color" type="color" value={object.color} onChange={(event) => updateObject(object.id, { color: event.target.value })} /></div><div className="slider-field"><div className="slider-label"><span>Opacity</span><span>{Math.round(object.opacity * 100)}%</span></div><input type="range" min="0" max="1" step="0.01" value={object.opacity} onChange={(event) => updateObject(object.id, { opacity: Number(event.target.value) })} /></div></div>
-    {object.kind === 'mesh' && <div className="property-section open"><SectionHeader label="Material" icon="cube" /><div className="material-card"><div className="material-preview" style={{ background: `linear-gradient(145deg, ${object.accent}, ${object.color})` }}><span className="material-gloss" /></div><div className="material-copy"><strong>Frosted {object.shape === 'sphere' ? 'Glass' : 'Surface'}</strong><span>MeshPhysicalMaterial</span></div><button onClick={() => onNotify('Material editor opened')}><Icon name="chevron" size={14} /></button></div><div className="slider-field"><div className="slider-label"><span>Roughness</span><span>{object.roughness.toFixed(2)}</span></div><input type="range" min="0" max="1" step="0.01" value={object.roughness} onChange={(event) => updateObject(object.id, { roughness: Number(event.target.value) })} /></div><div className="slider-field"><div className="slider-label"><span>Metalness</span><span>{object.metalness.toFixed(2)}</span></div><input type="range" min="0" max="1" step="0.01" value={object.metalness} onChange={(event) => updateObject(object.id, { metalness: Number(event.target.value) })} /></div></div>}
+    {object.kind === 'mesh' && <div className="property-section open"><SectionHeader label="Material" icon="cube" /><div className="material-card"><div className="material-preview" style={{ background: `linear-gradient(145deg, ${object.accent}, ${object.color})` }}><span className="material-gloss" /></div><div className="material-copy"><strong>Frosted {object.shape === 'sphere' ? 'Glass' : 'Surface'}</strong><span>MeshPhysicalMaterial</span></div><button onClick={() => onNotify('Experimental: material editor is planned for a later phase')}><Icon name="chevron" size={14} /></button></div><div className="slider-field"><div className="slider-label"><span>Roughness</span><span>{object.roughness.toFixed(2)}</span></div><input type="range" min="0" max="1" step="0.01" value={object.roughness} onChange={(event) => updateObject(object.id, { roughness: Number(event.target.value) })} /></div><div className="slider-field"><div className="slider-label"><span>Metalness</span><span>{object.metalness.toFixed(2)}</span></div><input type="range" min="0" max="1" step="0.01" value={object.metalness} onChange={(event) => updateObject(object.id, { metalness: Number(event.target.value) })} /></div></div>}
     <div className="property-section"><SectionHeader label="Animation" icon="play" right={<button className="keyframe-button" onClick={onAddKeyframe}><span>◆</span> Add keyframe</button>} /><div className="animation-note"><span className="animated-dot" /> {object.keyframes.length ? `${object.keyframes.length} keyframes in timeline` : 'No animated properties yet'} <span className="time-code">{formatTime(currentTime)}</span></div></div>
-    <div className="property-section"><SectionHeader label="Interactions" icon="cursor" right={<button className="mini-add" onClick={() => onNotify('Interaction event added')}><Icon name="plus" size={13} /></button>} /></div>
+    <div className="property-section"><SectionHeader label="Interactions" icon="cursor" right={<button className="mini-add" onClick={() => onNotify('Experimental: interaction graph is planned for a later phase')}><Icon name="plus" size={13} /></button>} /></div>
   </div>
 }
 
@@ -389,7 +422,7 @@ function highlightCode(line: string) { const parts = line.split(/(const|new|THRE
 
 function Timeline({ objects, currentTime, setTime, isPlaying, togglePlaying, selectedId, onSelect, onAddKeyframe, onNotify }: { objects: SceneObject[]; currentTime: number; setTime: (time: number) => void; isPlaying: boolean; togglePlaying: () => void; selectedId: string | null; onSelect: (id: string) => void; onAddKeyframe: () => void; onNotify: (message: string) => void }) {
   const tickMarks = Array.from({ length: 13 }, (_, i) => i * 4)
-  return <section className="timeline-panel"><div className="timeline-head"><div className="timeline-title"><span className="eyebrow">ANIMATION</span><h2>Timeline</h2><span className="timeline-version">Scene animation</span></div><div className="timeline-actions"><button className="small-icon" onClick={() => onNotify('Timeline settings opened')}><Icon name="settings" size={14} /></button><button className="small-icon" onClick={() => onNotify('Timeline menu opened')}><Icon name="more" size={14} /></button></div></div><div className="timeline-main"><div className="timeline-track-head"><div className="track-head-label">TRACKS <span>⌄</span></div><button className="track-add" onClick={onAddKeyframe}><Icon name="plus" size={13} /> Track</button><div className="track-controls"><button onClick={() => onNotify('Timeline zoomed out')}>−</button><span>100%</span><button onClick={() => onNotify('Timeline zoomed in')}>+</button><button onClick={() => onNotify('Timeline fit to content')}>⊡</button></div></div><div className="timeline-ruler"><div className="ruler-label">00:00:00</div><div className="ruler-scale">{tickMarks.map((tick) => <button key={tick} style={{ left: `${(tick / 48) * 100}%` }} onClick={() => setTime(tick)}>{String(Math.floor(tick / 24)).padStart(2, '0')}:{String(tick % 24).padStart(2, '0')}</button>)}</div></div><div className="tracks-area"><div className="track-list">{objects.filter((object) => object.keyframes.length || object.id === selectedId).slice(0, 4).map((object) => <div className={`timeline-track-row ${object.id === selectedId ? 'active' : ''}`} key={object.id} onClick={() => onSelect(object.id)}><span className="track-expand">⌄</span><span className={`track-dot kind-${object.kind}`}><Icon name={object.kind === 'light' ? 'light' : 'cube'} size={11} /></span><span>{object.name}</span><span className="track-lock"><Icon name="lock" size={11} /></span></div>)}<div className="timeline-track-row muted-row"><span className="track-expand">⌄</span><span className="track-dot"><Icon name="code" size={11} /></span><span>Scene events</span></div></div><div className="keyframe-area"><div className="playhead" style={{ left: `${(currentTime / 48) * 100}%` }}><span /></div>{objects.filter((object) => object.keyframes.length || object.id === selectedId).slice(0, 4).map((object, row) => <div className="keyframe-row" key={object.id} style={{ top: row * 31 }}>{object.keyframes.map((frame) => <button key={frame} className="diamond" style={{ left: `${(frame / 48) * 100}%` }} onClick={(event) => { event.stopPropagation(); setTime(frame) }} />)}{object.keyframes.length === 0 && <button className="empty-keyframe-line" onClick={onAddKeyframe}>+ add keyframe</button>}</div>)}</div></div></div><div className="timeline-footer"><div className="transport"><button className="small-icon" onClick={() => setTime(0)}>«</button><button className="small-icon" onClick={() => setTime(Math.max(0, currentTime - 1))}>‹</button><button className="play-button" onClick={togglePlaying}><Icon name={isPlaying ? 'pause' : 'play'} size={13} /></button><button className="small-icon" onClick={() => setTime(Math.min(48, currentTime + 1))}>›</button><button className="small-icon" onClick={() => setTime(48)}>»</button><span className="current-time">{formatTime(currentTime)} <small>/ 00:02:00</small></span></div><div className="timeline-hint"><span className="key-hint">Space</span> Play / pause <span className="key-hint">⌘ Z</span> Undo</div><div className="timeline-end"><span>24 fps</span><span>48 frames</span></div></div></section>
+  return <section className="timeline-panel"><div className="timeline-head"><div className="timeline-title"><span className="eyebrow">ANIMATION</span><h2>Timeline</h2><span className="timeline-version">Scene animation</span></div><div className="timeline-actions"><button className="small-icon" onClick={() => onNotify('Experimental: timeline settings are not wired yet')}><Icon name="settings" size={14} /></button><button className="small-icon" onClick={() => onNotify('Experimental: timeline menu is not wired yet')}><Icon name="more" size={14} /></button></div></div><div className="timeline-main"><div className="timeline-track-head"><div className="track-head-label">TRACKS <span>⌄</span></div><button className="track-add" onClick={onAddKeyframe}><Icon name="plus" size={13} /> Track</button><div className="track-controls"><button onClick={() => onNotify('Experimental: timeline zoom is not wired yet')}>−</button><span>100%</span><button onClick={() => onNotify('Experimental: timeline zoom is not wired yet')}>+</button><button onClick={() => onNotify('Experimental: timeline fit is not wired yet')}>⊡</button></div></div><div className="timeline-ruler"><div className="ruler-label">00:00:00</div><div className="ruler-scale">{tickMarks.map((tick) => <button key={tick} style={{ left: `${(tick / 48) * 100}%` }} onClick={() => setTime(tick)}>{String(Math.floor(tick / 24)).padStart(2, '0')}:{String(tick % 24).padStart(2, '0')}</button>)}</div></div><div className="tracks-area"><div className="track-list">{objects.filter((object) => object.keyframes.length || object.id === selectedId).slice(0, 4).map((object) => <div className={`timeline-track-row ${object.id === selectedId ? 'active' : ''}`} key={object.id} onClick={() => onSelect(object.id)}><span className="track-expand">⌄</span><span className={`track-dot kind-${object.kind}`}><Icon name={object.kind === 'light' ? 'light' : 'cube'} size={11} /></span><span>{object.name}</span><span className="track-lock"><Icon name="lock" size={11} /></span></div>)}<div className="timeline-track-row muted-row"><span className="track-expand">⌄</span><span className="track-dot"><Icon name="code" size={11} /></span><span>Scene events</span></div></div><div className="keyframe-area"><div className="playhead" style={{ left: `${(currentTime / 48) * 100}%` }}><span /></div>{objects.filter((object) => object.keyframes.length || object.id === selectedId).slice(0, 4).map((object, row) => <div className="keyframe-row" key={object.id} style={{ top: row * 31 }}>{object.keyframes.map((frame) => <button key={frame} className="diamond" style={{ left: `${(frame / 48) * 100}%` }} onClick={(event) => { event.stopPropagation(); setTime(frame) }} />)}{object.keyframes.length === 0 && <button className="empty-keyframe-line" onClick={onAddKeyframe}>+ add keyframe</button>}</div>)}</div></div></div><div className="timeline-footer"><div className="transport"><button className="small-icon" onClick={() => setTime(0)}>«</button><button className="small-icon" onClick={() => setTime(Math.max(0, currentTime - 1))}>‹</button><button className="play-button" onClick={togglePlaying}><Icon name={isPlaying ? 'pause' : 'play'} size={13} /></button><button className="small-icon" onClick={() => setTime(Math.min(48, currentTime + 1))}>›</button><button className="small-icon" onClick={() => setTime(48)}>»</button><span className="current-time">{formatTime(currentTime)} <small>/ 00:02:00</small></span></div><div className="timeline-hint"><span className="key-hint">Space</span> Play / pause <span className="key-hint">⌘ Z</span> Undo</div><div className="timeline-end"><span>24 fps</span><span>48 frames</span></div></div></section>
 }
 
 function CommandPalette({ open, close, onAction, notify }: { open: boolean; close: () => void; onAction: (action: () => void) => void; notify: (message: string) => void }) {
