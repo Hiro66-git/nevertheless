@@ -10,7 +10,7 @@ WebForge Visual is a professional, visual-first Three.js scene editor for crafti
 - Undo and redo history, keyboard shortcuts, command palette, timeline scrubbing/playback, and keyframe creation
 - `.wfv` project save/load and a working static HTML export
 - Design, Motion, and generated Code workspaces
-- GitHub Pages deployment workflow for a shareable web URL
+- A committed `docs/` static build ready for GitHub Pages or any static host
 
 ## Run locally
 
@@ -31,6 +31,10 @@ The desktop shell is also wired with a secure Electron main/preload bridge:
 ```bash
 npm run electron
 ```
+
+## GitHub Pages
+
+A production build is committed in `docs/` so the repository can be viewed as a static website. In the repository settings, choose **Pages → Deploy from a branch**, select `arena/01a0dcf1-nevertheless` and the `/docs` folder. GitHub will then publish the editor at the generated Pages URL.
 
 ### Shortcuts
 
