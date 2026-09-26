@@ -6,6 +6,12 @@ export interface SceneObject {
   name: string
   kind: ObjectKind
   shape?: MeshShape
+  materialId?: string
+  materialType?: 'MeshStandardMaterial' | 'MeshPhysicalMaterial'
+  materialOverride?: { color?: string; accent?: string; roughness?: number; metalness?: number; opacity?: number; emissive?: string; emissiveIntensity?: number }
+  emissive?: string
+  emissiveIntensity?: number
+  assetId?: string
   position: [number, number, number]
   rotation: [number, number, number]
   scale: [number, number, number]

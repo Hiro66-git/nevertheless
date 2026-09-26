@@ -21,6 +21,8 @@ export interface EditorEntity {
   components: {
     shape?: MeshShape
     materialId?: string
+    materialOverride?: Partial<Pick<MaterialDefinition, 'color' | 'accent' | 'roughness' | 'metalness' | 'opacity' | 'emissive' | 'emissiveIntensity'>>
+    assetId?: string
     light?: { color: string; intensity: number }
     text?: { value: string }
   }
@@ -58,10 +60,12 @@ export interface AnimationKeyframe {
   interpolation: 'linear'
 }
 
+export type AnimationProperty = 'position' | 'rotation' | 'scale' | 'opacity'
+
 export interface AnimationTrack {
   id: string
   entityId: string
-  property: 'position' | 'rotation' | 'scale' | 'opacity'
+  property: AnimationProperty
   keyframes: AnimationKeyframe[]
 }
 
@@ -93,6 +97,7 @@ export type ProjectFileV2 = EditorDocument
 export const isVec3 = (value: unknown): value is Vec3 => Array.isArray(value) && value.length === 3 && value.every((item) => typeof item === 'number' && Number.isFinite(item))
 export const entityToSceneObject = (document: EditorDocument, entity: EditorEntity): SceneObject => {
   const material = entity.components.materialId ? document.materials[entity.components.materialId] : undefined
+  const materialOverride = entity.components.materialOverride ?? {}
   const shape = entity.components.shape
   const metadataKeyframes = Array.isArray(entity.metadata.keyframes) ? entity.metadata.keyframes.filter((value): value is number => typeof value === 'number') : []
   const trackKeyframes = Object.values(document.animations).flatMap((track) => track.entityId === entity.id ? track.keyframes.map((keyframe) => keyframe.time) : [])
@@ -102,14 +107,20 @@ export const entityToSceneObject = (document: EditorDocument, entity: EditorEnti
     name: entity.name,
     kind: entity.type === 'empty' ? 'group' : entity.type,
     shape,
+    materialId: entity.components.materialId,
+    materialType: material?.type,
+    materialOverride,
+    assetId: entity.components.assetId,
     position: [...entity.transform.position] as Vec3,
     rotation: [...entity.transform.rotation] as Vec3,
     scale: [...entity.transform.scale] as Vec3,
-    color: material?.color ?? entity.components.light?.color ?? '#91a0ff',
-    accent: material?.accent ?? entity.components.light?.color ?? '#bec8ff',
-    metalness: material?.metalness ?? 0,
-    roughness: material?.roughness ?? 1,
-    opacity: material?.opacity ?? 1,
+    color: materialOverride.color ?? material?.color ?? entity.components.light?.color ?? '#91a0ff',
+    accent: materialOverride.accent ?? material?.accent ?? entity.components.light?.color ?? '#bec8ff',
+    metalness: materialOverride.metalness ?? material?.metalness ?? 0,
+    roughness: materialOverride.roughness ?? material?.roughness ?? 1,
+    opacity: materialOverride.opacity ?? material?.opacity ?? 1,
+    emissive: materialOverride.emissive ?? material?.emissive,
+    emissiveIntensity: materialOverride.emissiveIntensity ?? material?.emissiveIntensity,
     visible: entity.visible,
     locked: entity.locked,
     keyframes: Array.from(new Set(keyframes)).sort((a, b) => a - b),

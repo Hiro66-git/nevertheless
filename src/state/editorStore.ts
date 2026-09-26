@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Device, EditorMode, SceneObject, Tool } from '../types'
-import { commandForScenePatch, CreateEntityCommand, DeleteEntityCommand, DuplicateEntityCommand, entityForCreate, ParentEntityCommand } from '../editor/commands/sceneCommands'
+import { commandForScenePatch, CreateEntityCommand, DeleteEntityCommand, DuplicateEntityCommand, entityForCreate, ParentEntityCommand, RegisterAssetCommand, SetAnimationTrackCommand } from '../editor/commands/sceneCommands'
+import type { AnimationProperty, AssetDefinition } from '../editor/document/types'
 import { CompositeCommand } from '../editor/commands/command'
 import type { EditorCommand } from '../editor/commands/command'
 import { pushCommand, pushFutureCommand } from '../editor/history/commandHistory'
@@ -23,6 +24,7 @@ export interface EditorState {
   document: EditorDocument
   objects: SceneObject[]
   selectedId: string | null
+  selectedIds: string[]
   past: EditorCommand[]
   future: EditorCommand[]
   activeTool: Tool
@@ -35,7 +37,8 @@ export interface EditorState {
   projectDirty: boolean
   lastSaved: string
   lastError: string | null
-  selectObject: (id: string | null) => void
+  selectObject: (id: string | null, additive?: boolean) => void
+  clearSelection: () => void
   setTool: (tool: Tool) => void
   setMode: (mode: EditorMode) => void
   setDevice: (device: Device) => void
@@ -53,6 +56,8 @@ export interface EditorState {
   toggleVisibility: (id: string) => void
   toggleLock: (id: string) => void
   addKeyframe: (id: string, time?: number) => void
+  addKeyframeForProperty: (id: string, property: AnimationProperty, time?: number) => void
+  importAsset: (file: File) => Promise<boolean>
   undo: () => void
   redo: () => void
   saveProject: () => void
@@ -63,18 +68,22 @@ export interface EditorState {
 
 const initialDocument = createDocumentFromObjects(initialObjects, 'Lumen / Launch Experience')
 
-const stateForDocument = (document: EditorDocument, selectedId: string | null) => ({
-  document,
-  projectName: document.project.name,
-  objects: documentToSceneObjects(document),
-  selectedId,
-})
+const stateForDocument = (document: EditorDocument, selectedId: string | null, selectedIds = selectedId ? [selectedId] : []) => {
+  const validIds = selectedIds.filter((id) => Boolean(document.scene.entities[id]) && id !== document.scene.rootId)
+  return {
+    document,
+    projectName: document.project.name,
+    objects: documentToSceneObjects(document),
+    selectedId: validIds.includes(selectedId ?? '') ? selectedId : validIds[0] ?? null,
+    selectedIds: validIds,
+  }
+}
 
-const applyCommand = (state: EditorState, command: EditorCommand, selectedId = state.selectedId) => {
+const applyCommand = (state: EditorState, command: EditorCommand, selectedId = state.selectedId, selectedIds = selectedId ? [selectedId] : []) => {
   const document = cloneDocument(state.document)
   command.execute(document)
   return {
-    ...stateForDocument(document, selectedId),
+    ...stateForDocument(document, selectedId, selectedIds),
     past: pushCommand(state.past, command, historyLimit),
     future: [],
     projectDirty: true,
@@ -84,11 +93,48 @@ const applyCommand = (state: EditorState, command: EditorCommand, selectedId = s
 
 const selectedPatch = (document: EditorDocument, id: string, patch: Partial<SceneObject>) => commandForScenePatch(document, id, patch)
 
+const selectionRoots = (document: EditorDocument, selectedIds: string[]) => {
+  const ids = new Set(selectedIds)
+  return selectedIds.filter((id) => {
+    let parentId = document.scene.entities[id]?.parentId ?? null
+    while (parentId) {
+      if (ids.has(parentId)) return false
+      parentId = document.scene.entities[parentId]?.parentId ?? null
+    }
+    return true
+  })
+}
+
+const assetTypeFor = (file: File): AssetDefinition['type'] | null => {
+  const extension = file.name.toLowerCase().split('.').pop() ?? ''
+  if (['hdr', 'hdri'].includes(extension)) return 'hdr'
+  if (['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(extension) || file.type.startsWith('image/')) return 'image'
+  if (['glb', 'gltf'].includes(extension)) return 'model'
+  return null
+}
+
+const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = () => resolve(String(reader.result))
+  reader.onerror = () => reject(new Error(`Unable to read ${file.name}`))
+  reader.readAsDataURL(file)
+})
+
+const stableAssetId = async (file: File) => {
+  const bytes = await file.arrayBuffer()
+  if (globalThis.crypto?.subtle) {
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
+    return `asset-${Array.from(new Uint8Array(digest)).map((value) => value.toString(16).padStart(2, '0')).join('').slice(0, 24)}`
+  }
+  return `asset-${file.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${file.size}-${file.lastModified}`
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   projectName: initialDocument.project.name,
   document: initialDocument,
   objects: documentToSceneObjects(initialDocument),
   selectedId: selectedDefault,
+  selectedIds: [selectedDefault],
   past: [],
   future: [],
   activeTool: 'select',
@@ -101,25 +147,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   projectDirty: false,
   lastSaved: '09:41:12',
   lastError: null,
-  selectObject: (id) => set({ selectedId: id }),
+  selectObject: (id, additive = false) => set((state) => {
+    if (!id) return { selectedId: null, selectedIds: [] }
+    const current = state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : []
+    const selectedIds = additive
+      ? current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+      : [id]
+    return { selectedId: selectedIds[0] ?? null, selectedIds }
+  }),
+  clearSelection: () => set({ selectedId: null, selectedIds: [] }),
   setTool: (activeTool) => set({ activeTool }),
   setMode: (mode) => set({ mode }),
   setDevice: (device) => set((state) => {
     const document = cloneDocument(state.document)
     document.settings.viewport.device = device
-    return { ...stateForDocument(document, state.selectedId), device, projectDirty: true, lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), device, projectDirty: true, lastError: null }
   }),
   setTime: (currentTime) => set({ currentTime: Math.max(0, Math.min(48, Number.isFinite(currentTime) ? currentTime : 0)) }),
   togglePlaying: () => set((state) => ({ isPlaying: !state.isPlaying })),
   toggleSnap: () => set((state) => {
     const document = cloneDocument(state.document)
     document.settings.snap.enabled = !document.settings.snap.enabled
-    return { ...stateForDocument(document, state.selectedId), snapToGrid: document.settings.snap.enabled, projectDirty: true, lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), snapToGrid: document.settings.snap.enabled, projectDirty: true, lastError: null }
   }),
   toggleGrid: () => set((state) => {
     const document = cloneDocument(state.document)
     document.settings.grid.visible = !document.settings.grid.visible
-    return { ...stateForDocument(document, state.selectedId), showGrid: document.settings.grid.visible, projectDirty: true, lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), showGrid: document.settings.grid.visible, projectDirty: true, lastError: null }
   }),
   updateObject: (id, patch) => set((state) => applyCommand(state, selectedPatch(state.document, id, patch))),
   updateTransform: (id, field, index, value) => set((state) => {
@@ -154,27 +208,34 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return applyCommand(state, new CreateEntityCommand(entity), object.id)
   }),
   duplicateSelected: () => set((state) => {
-    if (!state.selectedId) return state
-    const duplicateId = `${state.selectedId}-copy-${Date.now()}`
-    return applyCommand(state, new DuplicateEntityCommand(state.document, state.selectedId, duplicateId), duplicateId)
+    const selection = selectionRoots(state.document, state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : [])
+    if (!selection.length) return state
+    const ids = selection.map((id) => `${id}-copy-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    const commands = selection.map((id, index) => new DuplicateEntityCommand(state.document, id, ids[index]))
+    return applyCommand(state, new CompositeCommand('Duplicate selection', commands), ids[0], ids)
   }),
   deleteSelected: () => set((state) => {
-    if (!state.selectedId || state.selectedId === state.document.scene.rootId) return state
-    const nextSelection = state.objects.find((object) => object.id !== state.selectedId)?.id ?? null
-    return applyCommand(state, new DeleteEntityCommand(state.selectedId), nextSelection)
+    const selection = selectionRoots(state.document, state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : [])
+      .filter((id) => id !== state.document.scene.rootId)
+    if (!selection.length) return state
+    const commands = selection.map((id) => new DeleteEntityCommand(id))
+    return applyCommand(state, new CompositeCommand('Delete selection', commands), null, [])
   }),
   groupSelected: () => set((state) => {
-    const selected = state.selectedId ? sceneObjectForEntity(state.document, state.selectedId) : undefined
-    if (!selected || selected.kind === 'group') return state
+    const selection = selectionRoots(state.document, state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : [])
+    const selected = selection[0] ? sceneObjectForEntity(state.document, selection[0]) : undefined
+    if (!selected || selection.length < 1 || selection.some((id) => state.document.scene.entities[id]?.type === 'group')) return state
     const groupId = `group-${Date.now()}`
     const group: SceneObject = {
       id: groupId, name: 'Group', kind: 'group', position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
       color: '#91a0ff', accent: '#bec8ff', metalness: 0, roughness: 1, opacity: 1, visible: true, locked: false, keyframes: [], parentId: selected.parentId,
     }
-    return applyCommand(state, new CompositeCommand('Group selection', [
-      new CreateEntityCommand(entityForCreate(group)),
-      new ParentEntityCommand(selected.id, selected.parentId ?? null, groupId),
-    ]), groupId)
+    const commands: EditorCommand[] = [new CreateEntityCommand(entityForCreate(group))]
+    for (const id of selection) {
+      const entity = state.document.scene.entities[id]
+      commands.push(new ParentEntityCommand(id, entity.parentId, groupId))
+    }
+    return applyCommand(state, new CompositeCommand('Group selection', commands), groupId, [groupId])
   }),
   ungroupSelected: () => set((state) => {
     const selected = state.selectedId ? state.document.scene.entities[state.selectedId] : undefined
@@ -186,37 +247,106 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return applyCommand(state, new CompositeCommand('Ungroup selection', commands), nextSelection)
   }),
   toggleVisibility: (id) => set((state) => {
-    const current = sceneObjectForEntity(state.document, id)
-    return current ? applyCommand(state, selectedPatch(state.document, id, { visible: !current.visible })) : state
+    const targets = state.selectedIds.includes(id) && state.selectedIds.length > 1 ? state.selectedIds : [id]
+    const commands = targets.flatMap((target) => {
+      const current = sceneObjectForEntity(state.document, target)
+      return current ? [selectedPatch(state.document, target, { visible: !current.visible })] : []
+    })
+    return commands.length ? applyCommand(state, new CompositeCommand('Set visibility', commands)) : state
   }),
   toggleLock: (id) => set((state) => {
-    const current = sceneObjectForEntity(state.document, id)
-    return current ? applyCommand(state, selectedPatch(state.document, id, { locked: !current.locked })) : state
+    const targets = state.selectedIds.includes(id) && state.selectedIds.length > 1 ? state.selectedIds : [id]
+    const commands = targets.flatMap((target) => {
+      const current = sceneObjectForEntity(state.document, target)
+      return current ? [selectedPatch(state.document, target, { locked: !current.locked })] : []
+    })
+    return commands.length ? applyCommand(state, new CompositeCommand('Set lock', commands)) : state
   }),
-  addKeyframe: (id, time = get().currentTime) => set((state) => {
+  addKeyframe: (id, time = get().currentTime) => get().addKeyframeForProperty(id, 'position', time),
+  addKeyframeForProperty: (id, property, time = get().currentTime) => set((state) => {
     const current = sceneObjectForEntity(state.document, id)
     if (!current) return state
-    const keyframes = Array.from(new Set([...current.keyframes, Math.round(time)])).sort((a, b) => a - b)
-    return applyCommand(state, selectedPatch(state.document, id, { keyframes }))
+    const trackId = `${id}:${property}`
+    const before = state.document.animations[trackId]
+    const value = property === 'opacity' ? current.opacity : [...current[property]] as [number, number, number]
+    const keyframes = before ? [...before.keyframes] : []
+    const frame = { time: Math.round(time), value, interpolation: 'linear' as const }
+    const index = keyframes.findIndex((item) => item.time === frame.time)
+    if (index >= 0) keyframes[index] = frame
+    else keyframes.push(frame)
+    keyframes.sort((a, b) => a.time - b.time)
+    const after = { id: trackId, entityId: id, property, keyframes }
+    return applyCommand(state, new SetAnimationTrackCommand(trackId, before, after))
   }),
+  importAsset: async (file) => {
+    const type = assetTypeFor(file)
+    if (!type) {
+      set({ lastError: `Unsupported asset format: ${file.name}` })
+      return false
+    }
+    try {
+      const state = get()
+      const assetId = await stableAssetId(file)
+      const existing = state.document.assets[assetId]
+      const source = existing?.source ?? await readFileAsDataUrl(file)
+      const asset: AssetDefinition = existing ?? {
+        id: assetId,
+        name: file.name,
+        type,
+        source,
+        size: file.size,
+        metadata: { mimeType: file.type, lastModified: file.lastModified },
+        thumbnail: type === 'image' ? source : undefined,
+        dependencies: [],
+      }
+      const commands: EditorCommand[] = existing ? [] : [new RegisterAssetCommand(asset)]
+      let selectedId: string | null = state.selectedId
+      if (type !== 'hdr') {
+        const object: SceneObject = {
+          id: `asset-entity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,          name: file.name.replace(/\.[^/.]+$/, ''),
+          kind: 'mesh',
+          shape: type === 'image' ? 'plane' : 'box',
+          assetId: asset.id,
+          position: [0, 0.2, 0],
+          rotation: type === 'image' ? [-Math.PI / 2, 0, 0] : [0, 0, 0],
+          scale: [1.5, 1.5, 1.5],
+          color: '#ffffff',
+          accent: '#ffffff',
+          metalness: 0,
+          roughness: 0.5,
+          opacity: 1,
+          visible: true,
+          locked: false,
+          keyframes: [],
+        }
+        commands.push(new CreateEntityCommand(entityForCreate(object)))
+        selectedId = object.id
+      }
+      set((current) => applyCommand(current, new CompositeCommand('Import asset', commands), selectedId))
+      return true
+    } catch (error) {
+      set({ lastError: error instanceof Error ? error.message : 'Unable to import asset' })
+      return false
+    }
+  },
   undo: () => set((state) => {
     const command = state.past.at(-1)
     if (!command) return state
     const document = cloneDocument(state.document)
     command.undo(document)
-    return { ...stateForDocument(document, state.selectedId), past: state.past.slice(0, -1), future: pushFutureCommand(state.future, command, historyLimit), projectDirty: true, lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), past: state.past.slice(0, -1), future: pushFutureCommand(state.future, command, historyLimit), projectDirty: true, lastError: null }
   }),
   redo: () => set((state) => {
     const command = state.future[0]
     if (!command) return state
     const document = cloneDocument(state.document)
     command.execute(document)
-    return { ...stateForDocument(document, state.selectedId), past: pushCommand(state.past, command, historyLimit), future: state.future.slice(1), projectDirty: true, lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), past: pushCommand(state.past, command, historyLimit), future: state.future.slice(1), projectDirty: true, lastError: null }
   }),
   saveProject: () => set((state) => {
     const document = cloneDocument(state.document)
     document.project.updatedAt = new Date().toISOString()
-    return { ...stateForDocument(document, state.selectedId), projectDirty: false, lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), projectDirty: false, lastSaved: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), lastError: null }
   }),
   loadProject: (payload) => {
     try {
@@ -236,4 +366,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   executeCommand: (command, selectionId) => set((state) => applyCommand(state, command, selectionId)),
 }))
 
-export const projectPayload = (state: Pick<EditorState, 'document'>) => JSON.stringify(state.document, null, 2)
+export const projectPayload = (state: Pick<EditorState, 'document'>) => {
+  const document = cloneDocument(state.document)
+  document.project.updatedAt = new Date().toISOString()
+  return JSON.stringify(document, null, 2)
+}

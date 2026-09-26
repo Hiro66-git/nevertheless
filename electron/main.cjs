@@ -37,6 +37,19 @@ ipcMain.handle('project:open', async () => {
   return { canceled: false, filePath: result.filePaths[0], payload: await fs.readFile(result.filePaths[0], 'utf8') }
 })
 
+ipcMain.handle('asset:open', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'WebForge assets', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg', 'glb', 'gltf', 'hdr', 'hdri'] }],
+  })
+  if (result.canceled || !result.filePaths[0]) return { canceled: true }
+  const filePath = result.filePaths[0]
+  const extension = path.extname(filePath).slice(1).toLowerCase()
+  const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', svg: 'image/svg+xml', glb: 'model/gltf-binary', gltf: 'model/gltf+json', hdr: 'image/vnd.radiance', hdri: 'image/vnd.radiance' }[extension] || 'application/octet-stream'
+  const buffer = await fs.readFile(filePath)
+  return { canceled: false, name: path.basename(filePath), type: mime, size: buffer.byteLength, source: `data:${mime};base64,${buffer.toString('base64')}` }
+})
+
 app.whenReady().then(() => {
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })

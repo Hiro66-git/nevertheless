@@ -1,6 +1,6 @@
 import type { SceneObject } from '../../types'
 import { addEntity, entityFromSceneObject, getEntity, patchEntityFromSceneObject, removeEntitySubtree, restoreEntities, sceneObjectForEntity, setEntityParent } from '../document/document'
-import type { EditorDocument, EditorEntity } from '../document/types'
+import type { AssetDefinition, EditorDocument, EditorEntity } from '../document/types'
 import type { EditorCommand } from './command'
 
 export class CreateEntityCommand implements EditorCommand {
@@ -39,18 +39,55 @@ export class ParentEntityCommand implements EditorCommand {
   undo(document: EditorDocument) { setEntityParent(document, this.id, this.beforeParentId) }
 }
 
+export class SetAnimationTrackCommand implements EditorCommand {
+  readonly label = 'Update animation track'
+  constructor(private readonly trackId: string, private readonly before: import('../document/types').AnimationTrack | undefined, private readonly after: import('../document/types').AnimationTrack | undefined) {}
+  execute(document: EditorDocument) { if (this.after) document.animations[this.trackId] = JSON.parse(JSON.stringify(this.after)); else delete document.animations[this.trackId] }
+  undo(document: EditorDocument) { if (this.before) document.animations[this.trackId] = JSON.parse(JSON.stringify(this.before)); else delete document.animations[this.trackId] }
+}
+
+export class RegisterAssetCommand implements EditorCommand {
+  readonly label = 'Import asset'
+  constructor(private readonly asset: AssetDefinition) {}
+  execute(document: EditorDocument) { document.assets[this.asset.id] = JSON.parse(JSON.stringify(this.asset)) as AssetDefinition }
+  undo(document: EditorDocument) { delete document.assets[this.asset.id] }
+}
+
 export class DuplicateEntityCommand implements EditorCommand {
   readonly label = 'Duplicate entity'
-  private readonly duplicate: EditorEntity
+  private readonly duplicates: EditorEntity[]
+  private readonly rootId: string
   constructor(document: EditorDocument, sourceId: string, duplicateId: string) {
     const source = getEntity(document, sourceId)
     if (!source) throw new Error('Cannot duplicate missing entity')
-    this.duplicate = JSON.parse(JSON.stringify({ ...source, id: duplicateId, name: `${source.name} copy`, children: [] })) as EditorEntity
-    this.duplicate.transform.position[0] += 0.45
-    this.duplicate.transform.position[1] += 0.2
+    this.rootId = duplicateId
+    const idMap = new Map<string, string>([[sourceId, duplicateId]])
+    const sourceEntities: EditorEntity[] = []
+    const collect = (id: string) => {
+      const entity = getEntity(document, id)
+      if (!entity) return
+      sourceEntities.push(entity)
+      for (const childId of entity.children) {
+        idMap.set(childId, `${duplicateId}-${childId}`)
+        collect(childId)
+      }
+    }
+    collect(sourceId)
+    this.duplicates = sourceEntities.map((entity, index) => {
+      const clone = JSON.parse(JSON.stringify(entity)) as EditorEntity
+      clone.id = idMap.get(entity.id)!
+      clone.name = index === 0 ? `${entity.name} copy` : entity.name
+      clone.parentId = entity.id === sourceId ? entity.parentId : idMap.get(entity.parentId ?? '') ?? duplicateId
+      clone.children = entity.children.map((childId) => idMap.get(childId)!).filter(Boolean)
+      if (index === 0) {
+        clone.transform.position[0] += 0.45
+        clone.transform.position[1] += 0.2
+      }
+      return clone
+    })
   }
-  execute(document: EditorDocument) { addEntity(document, this.duplicate) }
-  undo(document: EditorDocument) { removeEntitySubtree(document, this.duplicate.id) }
+  execute(document: EditorDocument) { for (const entity of this.duplicates) addEntity(document, entity) }
+  undo(document: EditorDocument) { removeEntitySubtree(document, this.rootId) }
 }
 
 export const commandForScenePatch = (document: EditorDocument, id: string, patch: Partial<SceneObject>, label = 'Update entity') => {

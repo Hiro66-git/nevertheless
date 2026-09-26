@@ -1,7 +1,11 @@
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import type { SceneObject, Tool } from '../../types'
+import type { AssetDefinition, EditorDocument } from '../document/types'
+import { materialKeyForObject, MaterialManager } from '../materials/materialManager'
+import { evaluateDocumentAtTime } from '../animation/animationEvaluator'
 
 export type RuntimeTransform = {
   position: [number, number, number]
@@ -10,8 +14,11 @@ export type RuntimeTransform = {
 }
 
 export type SceneRuntimeCallbacks = {
-  onSelect: (id: string) => void
-  onTransformCommit: (id: string, transform: RuntimeTransform) => void
+  onSelect: (id: string, additive: boolean) => void
+  onEmptySelect: (additive: boolean) => void
+  onTransformStart?: (id: string, transform: RuntimeTransform) => void
+  onTransformCommit: (id: string, before: RuntimeTransform, after: RuntimeTransform) => void
+  onTransformCancel?: (id: string, transform: RuntimeTransform) => void
 }
 
 type RuntimeEntity = {
@@ -19,6 +26,7 @@ type RuntimeEntity = {
   signature: string
   resourceKey: string
   source: SceneObject
+  materialId?: string
 }
 
 const transformModeForTool = (tool: Tool): 'translate' | 'rotate' | 'scale' | null => {
@@ -28,7 +36,7 @@ const transformModeForTool = (tool: Tool): 'translate' | 'rotate' | 'scale' | nu
   return null
 }
 
-const resourceKeyFor = (object: SceneObject) => `${object.kind}:${object.shape ?? 'none'}`
+const resourceKeyFor = (object: SceneObject) => `${object.kind}:${object.shape ?? 'none'}:${materialKeyForObject(object)}:${object.assetId ?? 'none'}`
 const signatureFor = (object: SceneObject) => JSON.stringify(object)
 
 export class SceneRuntime {
@@ -45,10 +53,15 @@ export class SceneRuntime {
   private readonly raycaster = new THREE.Raycaster()
   private readonly pointer = new THREE.Vector2()
   private readonly registry = new Map<string, RuntimeEntity>()
+  private readonly materialManager = new MaterialManager()
+  private readonly gltfLoader = new GLTFLoader()
+  private readonly textureLoader = new THREE.TextureLoader()
+  private assetDefinitions: Record<string, AssetDefinition> = {}
   private readonly resizeObserver: ResizeObserver
   private frameRequest = 0
-  private selectedId: string | null = null
-  private selectionHelper: THREE.BoxHelper | null = null
+  private selectedIds: string[] = []
+  private selectionHelpers: THREE.BoxHelper[] = []
+  private transformSession: { id: string; before: RuntimeTransform } | null = null
   private disposed = false
 
   constructor(host: HTMLElement, callbacks: SceneRuntimeCallbacks) {
@@ -83,10 +96,21 @@ export class SceneRuntime {
     this.transformHelper = this.transformControls.getHelper()
     this.transformControls.addEventListener('dragging-changed', (event) => {
       this.orbitControls.enabled = !event.value
-      if (event.value || !this.transformControls.object) return
-      const id = this.transformControls.object.userData.objectId as string | undefined
-      if (id) this.callbacks.onTransformCommit(id, this.readTransform(this.transformControls.object))
+      const object = this.transformControls.object
+      const id = object?.userData.objectId as string | undefined
+      if (!id || !object) return
+      if (event.value) {
+        this.transformSession = { id, before: this.readTransform(object) }
+        this.callbacks.onTransformStart?.(id, this.transformSession.before)
+        return
+      }
+      const session = this.transformSession
+      this.transformSession = null
+      if (!session) return
+      const after = this.readTransform(object)
+      if (!this.sameTransform(session.before, after)) this.callbacks.onTransformCommit(id, session.before, after)
     })
+    window.addEventListener('keydown', this.handleKeyDown)
 
     this.addLighting()
     this.grid = new THREE.GridHelper(12, 24, '#2a3f44', '#17262c')
@@ -103,6 +127,11 @@ export class SceneRuntime {
     this.renderer.domElement.addEventListener('pointerdown', this.handlePointerDown)
 
     this.frameRequest = window.requestAnimationFrame(this.render)
+  }
+
+  syncDocument(document: EditorDocument, time = 0) {
+    this.assetDefinitions = document.assets
+    this.syncObjects(evaluateDocumentAtTime(document, time))
   }
 
   syncObjects(objects: SceneObject[]) {
@@ -136,9 +165,10 @@ export class SceneRuntime {
     this.syncSelection()
   }
 
-  setSelection(id: string | null) {
-    if (this.selectedId === id) return
-    this.selectedId = id
+  setSelection(ids: string[]) {
+    const next = [...new Set(ids)]
+    if (this.selectedIds.length === next.length && this.selectedIds.every((id, index) => id === next[index])) return
+    this.selectedIds = next
     this.syncSelection()
   }
 
@@ -146,9 +176,25 @@ export class SceneRuntime {
     this.grid.visible = visible
   }
 
+  setSnap(enabled: boolean, step = 0.25) {
+    this.transformControls.setTranslationSnap(enabled ? step : null)
+    this.transformControls.setRotationSnap(enabled ? Math.PI / 12 : null)
+    this.transformControls.setScaleSnap(enabled ? 0.1 : null)
+  }
+
+  cancelTransform() {
+    const session = this.transformSession
+    const object = this.transformControls.object
+    if (!session || !object) return
+    this.applyRuntimeTransform(object, session.before)
+    this.transformSession = null
+    this.transformControls.detach()
+    this.callbacks.onTransformCancel?.(session.id, session.before)
+  }
+
   setTransformTool(tool: Tool) {
     const mode = transformModeForTool(tool)
-    const selected = this.selectedId ? this.registry.get(this.selectedId) : undefined
+    const selected = this.selectedIds.length === 1 ? this.registry.get(this.selectedIds[0]) : undefined
     if (!mode || !selected || !selected.object3D.visible || selected.source.locked || selected.object3D.userData.effectiveLocked) {
       this.transformControls.detach()
       this.renderer.domElement.style.cursor = tool === 'hand' ? 'grab' : tool === 'select' ? 'default' : 'crosshair'
@@ -164,15 +210,17 @@ export class SceneRuntime {
     this.disposed = true
     this.resizeObserver.disconnect()
     window.cancelAnimationFrame(this.frameRequest)
+    window.removeEventListener('keydown', this.handleKeyDown)
     this.renderer.domElement.removeEventListener('pointerdown', this.handlePointerDown)
     this.transformControls.detach()
     this.transformControls.dispose()
     this.orbitControls.dispose()
-    this.clearSelectionHelper()
+    this.clearSelectionHelpers()
     for (const [id, entity] of this.registry) this.removeEntity(id, entity)
     this.registry.clear()
     this.grid.geometry.dispose()
     this.disposeMaterial(this.grid.material)
+    this.materialManager.dispose()
     this.renderer.dispose()
     if (this.renderer.domElement.parentElement === this.host) this.host.removeChild(this.renderer.domElement)
   }
@@ -187,17 +235,28 @@ export class SceneRuntime {
       .filter((entity) => entity.object3D.visible)
       .map((entity) => entity.object3D)
     const hit = this.raycaster.intersectObjects(pickable, true)[0]?.object
-    if (!hit) return
+    const additive = event.shiftKey || event.metaKey || event.ctrlKey
+    if (!hit) {
+      this.callbacks.onEmptySelect(additive)
+      return
+    }
     let current: THREE.Object3D | null = hit
     while (current && !current.userData.objectId) current = current.parent
     const id = current?.userData.objectId as string | undefined
-    if (id) this.callbacks.onSelect(id)
+    if (id) this.callbacks.onSelect(id, additive)
+  }
+
+  private readonly handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && this.transformSession) {
+      event.preventDefault()
+      this.cancelTransform()
+    }
   }
 
   private readonly render = () => {
     if (this.disposed) return
     this.frameRequest = window.requestAnimationFrame(this.render)
-    this.selectionHelper?.update()
+    for (const helper of this.selectionHelpers) helper.update()
     this.orbitControls.update()
     this.renderer.render(this.scene, this.camera)
   }
@@ -227,10 +286,20 @@ export class SceneRuntime {
     object3D.name = object.name
     object3D.userData.objectId = object.id
     this.stage.add(object3D)
-    return { object3D, signature, resourceKey, source: object }
+    const asset = object.assetId ? this.assetDefinitions[object.assetId] : undefined
+    const usesManagedMaterial = object.kind === 'mesh' && asset?.type !== 'model'
+    const entity: RuntimeEntity = { object3D, signature, resourceKey, source: object, materialId: usesManagedMaterial ? materialKeyForObject(object) : undefined }
+    if (asset) void this.loadAsset(entity, asset)
+    return entity
   }
 
   private createVisual(object: SceneObject): THREE.Object3D {
+    const asset = object.assetId ? this.assetDefinitions[object.assetId] : undefined
+    if (asset?.type === 'model') {
+      const group = new THREE.Group()
+      this.applyTransform(group, object)
+      return group
+    }
     if (object.kind === 'light') {
       const light = new THREE.PointLight(object.color, 3.2, 5, 2)
       light.castShadow = true
@@ -252,20 +321,34 @@ export class SceneRuntime {
     }
 
     const geometry = this.createGeometry(object.shape)
-    const material = new THREE.MeshPhysicalMaterial({
-      color: object.color,
-      metalness: object.metalness,
-      roughness: object.roughness,
-      transparent: object.opacity < 1,
-      opacity: object.opacity,
-      clearcoat: object.shape === 'sphere' ? 0.6 : 0.15,
-      emissive: object.shape === 'sphere' ? new THREE.Color(object.color).multiplyScalar(0.08) : '#000000',
-    })
+    const { material } = this.materialManager.acquire(object)
     const mesh = new THREE.Mesh(geometry, material)
     mesh.castShadow = true
     mesh.receiveShadow = true
     this.applyTransform(mesh, object)
     return mesh
+  }
+
+  private async loadAsset(entity: RuntimeEntity, asset: AssetDefinition) {
+    try {
+      if (asset.type === 'model') {
+        const loaded = await this.gltfLoader.loadAsync(asset.source)
+        const current = this.registry.get(entity.source.id)
+        if (!current || current.object3D !== entity.object3D || this.disposed) return
+        current.object3D.add(loaded.scene)
+        loaded.scene.traverse((child) => { child.userData.objectId = entity.source.id })
+        return
+      }
+      if (asset.type === 'image' && entity.object3D instanceof THREE.Mesh) {
+        const texture = await this.textureLoader.loadAsync(asset.source)
+        const material = entity.object3D.material as THREE.MeshPhysicalMaterial
+        material.map = texture
+        material.transparent = true
+        material.needsUpdate = true
+      }
+    } catch (error) {
+      console.error(`Unable to load asset ${asset.name}`, error)
+    }
   }
 
   private createGeometry(shape: SceneObject['shape']) {
@@ -301,16 +384,12 @@ export class SceneRuntime {
   private updateVisual(object3D: THREE.Object3D, source: SceneObject) {
     object3D.name = source.name
     this.applyTransform(object3D, source)
+    if (object3D instanceof THREE.Mesh) object3D.material = this.materialManager.update(source)
     object3D.traverse((child) => {
-      if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
-        const material = child.material as THREE.MeshPhysicalMaterial | THREE.SpriteMaterial
-        if ('color' in material) material.color.set(source.color)
-        if ('opacity' in material) material.opacity = source.opacity
-        if ('transparent' in material) material.transparent = source.opacity < 1
-        if (material instanceof THREE.MeshPhysicalMaterial) {
-          material.metalness = source.metalness
-          material.roughness = source.roughness
-        }
+      if (child instanceof THREE.Sprite) {
+        child.material.color.set(source.color)
+        child.material.opacity = source.opacity
+        child.material.needsUpdate = true
       }
       if (child instanceof THREE.PointLight) child.color.set(source.color)
     })
@@ -325,9 +404,9 @@ export class SceneRuntime {
   private removeEntity(id: string, entity: RuntimeEntity) {
     if (this.transformControls.object === entity.object3D) this.transformControls.detach()
     this.stage.remove(entity.object3D)
-    this.disposeObject(entity.object3D)
+    this.disposeObject(entity.object3D, entity.materialId)
     this.registry.delete(id)
-    if (this.selectedId === id) this.clearSelectionHelper()
+    if (this.selectedIds.includes(id)) this.clearSelectionHelpers()
   }
 
   private syncHierarchy(objects: SceneObject[]) {
@@ -358,22 +437,25 @@ export class SceneRuntime {
   }
 
   private syncSelection() {
-    this.clearSelectionHelper()
-    const selected = this.selectedId ? this.registry.get(this.selectedId) : undefined
-    if (selected?.object3D.visible) {
-      this.selectionHelper = new THREE.BoxHelper(selected.object3D, new THREE.Color('#73ebd0'))
-      this.selectionHelper.renderOrder = 3
-      this.stage.add(this.selectionHelper)
+    this.clearSelectionHelpers()
+    for (const id of this.selectedIds) {
+      const selected = this.registry.get(id)
+      if (!selected?.object3D.visible) continue
+      const helper = new THREE.BoxHelper(selected.object3D, new THREE.Color('#73ebd0'))
+      helper.renderOrder = 3
+      this.stage.add(helper)
+      this.selectionHelpers.push(helper)
     }
     this.setTransformTool('select')
   }
 
-  private clearSelectionHelper() {
-    if (!this.selectionHelper) return
-    this.stage.remove(this.selectionHelper)
-    this.selectionHelper.geometry.dispose()
-    this.disposeMaterial(this.selectionHelper.material)
-    this.selectionHelper = null
+  private clearSelectionHelpers() {
+    for (const helper of this.selectionHelpers) {
+      this.stage.remove(helper)
+      helper.geometry.dispose()
+      this.disposeMaterial(helper.material)
+    }
+    this.selectionHelpers = []
   }
 
   private readTransform(object3D: THREE.Object3D): RuntimeTransform {
@@ -384,7 +466,22 @@ export class SceneRuntime {
     }
   }
 
-  private disposeObject(object3D: THREE.Object3D) {
+  private applyRuntimeTransform(object3D: THREE.Object3D, transform: RuntimeTransform) {
+    object3D.position.set(...transform.position)
+    object3D.rotation.set(...transform.rotation)
+    object3D.scale.set(...transform.scale)
+  }
+
+  private sameTransform(a: RuntimeTransform, b: RuntimeTransform) {
+    return [...a.position, ...a.rotation, ...a.scale].every((value, index) => Math.abs(value - [...b.position, ...b.rotation, ...b.scale][index]) < 1e-8)
+  }
+
+  private disposeObject(object3D: THREE.Object3D, managedMaterialId?: string) {
+    if (managedMaterialId && object3D instanceof THREE.Mesh) {
+      object3D.geometry.dispose()
+      this.materialManager.release(managedMaterialId)
+      return
+    }
     object3D.traverse((child) => {
       if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Sprite)) return
       if (child.geometry) child.geometry.dispose()
