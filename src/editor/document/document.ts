@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { SceneObject } from '../../types'
 import type { EditorDocument, EditorEntity, EntityTransform, MaterialDefinition, Vec3 } from './types'
 import { entityToSceneObject, isVec3 } from './types'
+import { createDefaultWebDocument, validateWebDocument } from '../web/webDocument'
 
 export const ROOT_ENTITY_ID = 'scene-root'
 
@@ -104,6 +105,7 @@ export const createDocumentFromObjects = (objects: SceneObject[], projectName: s
     materials,
     assets: {},
     animations,
+    web: createDefaultWebDocument(projectName),
     settings: { grid: { visible: true, size: 12, divisions: 24 }, snap: { enabled: true, step: 0.25 }, viewport: { device: 'desktop', camera: 'perspective' } },
   }
 }
@@ -285,6 +287,7 @@ export const validateDocument = (document: EditorDocument): EditorDocument => {
   if (document.version !== 2) throw new Error('Unsupported project version')
   const root = document.scene?.entities?.[document.scene.rootId]
   if (!root || root.parentId !== null) throw new Error('Project scene root is invalid')
+  document.web = document.web ? validateWebDocument(document.web).document : createDefaultWebDocument(document.project.name)
   const entities = document.scene.entities
   for (const entity of Object.values(entities)) {
     if (!entity.id || entity.id !== entity.id.trim()) throw new Error('Project contains an invalid entity ID')

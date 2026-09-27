@@ -1,4 +1,5 @@
 import type { MeshShape, ObjectKind, SceneObject } from '../../types'
+import type { WebDocument } from '../web/webDocumentTypes'
 
 export type EntityType = ObjectKind | 'empty'
 export type Vec3 = [number, number, number]
@@ -85,6 +86,7 @@ export interface EditorDocument {
   materials: Record<string, MaterialDefinition>
   assets: Record<string, AssetDefinition>
   animations: Record<string, AnimationTrack>
+  web?: WebDocument
   settings: {
     grid: { visible: boolean; size: number; divisions: number }
     snap: { enabled: boolean; step: number }

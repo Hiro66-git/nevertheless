@@ -56,14 +56,14 @@ This repository intentionally ships a verified vertical slice instead of pretend
 | History | Bounded command-based undo / redo |
 | Project files | Version 2 `.wfv` serialization, legacy version 1 migration, browser/native open/save bridge |
 | Animation | Timeline playhead, playback, scrubbing, keyframe creation |
-| Output | Preview window and standalone HTML export |
-| Desktop shell | Electron main/preload split with `contextIsolation` and no renderer Node access (launch check pending binary availability) |
+| Output | Versioned WebDocument generation, sandboxed generated preview, and Electron static export pipeline |
+| Desktop shell | Electron main/preload split with `contextIsolation`, sandbox, no renderer Node access, and validated export IPC |
 
 ### Explicitly not claimed yet
 
 These are intentionally left for later phases rather than represented as finished functionality:
 
-- GLTF/GLB ingestion into the scene graph, asset thumbnails, and resource disposal queues
+- HDR environment application, asset thumbnails, and external GLTF dependency bundling
 - Monaco-powered multi-file code editing and two-way code-to-scene synchronization
 - Full standalone Vite project export with copied assets and production-build verification
 - Node-based interactions, responsive layout authoring, custom shaders, post-processing, and WebGPU
@@ -135,33 +135,41 @@ npm run build
 
 **Still open:** schema validation depth, Save As polish, autosave, and a full reopen test inside a packaged Electron window.
 
-### Phase 5 — Assets · **experimental**
+### Phase 5 — Assets · **verified foundation**
 
-- Asset browser surface and local import entry point exist.
-- File types are constrained to image, GLTF/GLB, OBJ, SVG, WebP, HDR, and video inputs.
+- Stable content-derived asset IDs and persisted asset metadata.
+- Browser drag/drop and Electron preload import for PNG, JPG, JPEG, WEBP, SVG, GLB, GLTF, HDR, and HDRI.
+- Runtime image/model loading and explicit material/runtime disposal.
 
-**Still open:** decoding imported assets into the scene, real thumbnails, drag-and-drop, and explicit Three.js disposal.
+**Still open:** HDR environment application, asset thumbnails, and external GLTF dependency bundling.
 
-### Phase 6 — Animation · **verified vertical slice**
+### Phase 6 — Animation · **verified foundation**
 
-- Timeline tracks, playhead, scrubbing, playback, and keyframe markers.
-- Keyframes can be added to selected objects and played through the timeline.
+- Value-bearing position, rotation, scale, and opacity tracks.
+- Deterministic linear evaluation during timeline scrubbing and playback.
+- Keyframe changes are committed through undoable commands.
 
-**Still open:** interpolation, easing, curve editing, and property sampling during playback.
+**Still open:** easing and curve editing.
 
-### Phase 7 — Web development · **experimental**
+### Phase 7 — Web development · **Milestone 3 foundation verified**
 
-- Generated scene code is visible in the Code inspector.
-- Preview renders the current published scene artifact.
+- Versioned serializable WebDocument state is persisted inside `.wfv` projects.
+- Scene data deterministically generates separate `index.html`, `styles.css`, and `scene.js` files.
+- HTML/CSS/JavaScript user regions are edited with CodeMirror syntax highlighting.
+- Code typing stays in a temporary buffer and commits as one undoable project mutation.
+- Generated scene regions are marked and user-owned regions are preserved.
+- Preview uses a sandboxed iframe, explicit versioned messages, debounced reloads, loading state, runtime errors, and disposal.
 
-**Still open:** Monaco, multi-file editing, user-code separation, and two-way synchronization.
+**Still open:** Monaco-level IDE features, richer structured HTML authoring, and two-way visual editing of arbitrary user code.
 
-### Phase 8 — Export · **experimental**
+### Phase 8 — Export · **Milestone 3 foundation verified**
 
-- Standalone HTML export is available and opens outside Electron.
-- A committed production build lives in `docs/` for static hosting.
+- Electron main process writes real `index.html`, `styles.css`, and `scene.js` files.
+- Embedded asset data is copied into an `assets/` directory.
+- Export paths are validated for traversal and writes use a temporary directory before rename.
+- Canceled or failed exports do not report success.
 
-**Still open:** exporting a complete Vite / Three.js project, copying assets, installing dependencies, and verifying an exported production build.
+**Still open:** archive export, external GLTF dependency bundling, and production verification in an offline environment.
 
 ### Phase 9 — Advanced features · **not started**
 
@@ -278,10 +286,10 @@ The viewport caps device pixel ratio at `2`, uses an explicit WebGL renderer, an
 | 2 | Persistent Three.js scene + picking + gizmos | `src/editor/scene/sceneRuntime.ts`, `src/editor/viewport/ThreeViewport.tsx` | `npm run build`, dev-server smoke test | Complex imported geometry is not in scope yet |
 | 3 | Version 2 document + command history | `src/editor/document/*`, `src/editor/commands/*`, `src/state/editorStore.ts` | `npm run build`, manual command paths | Numeric inspector transaction grouping remains |
 | 4 | `.wfv` serialization + dialog bridge | `src/editor/document/*`, `src/state/editorStore.ts`, `electron/*` | `npm run build` | Schema validation, autosave and packaged reopen test remain |
-| 5 | Asset surface only | `src/App.tsx` | `npm run build` | Import-to-scene and disposal remain |
-| 6 | Timeline vertical slice | `src/App.tsx`, `src/state/editorStore.ts` | `npm run build` | Interpolation and easing remain |
-| 7 | Generated code view + preview | `src/App.tsx` | `npm run build` | Monaco and two-way sync remain |
-| 8 | HTML export + `docs/` build | `src/App.tsx`, `docs/` | `npm run build` | Full Vite project export remains |
+| 5 | Asset registry/import foundation | `src/editor/scene/sceneRuntime.ts`, `src/state/editorStore.ts`, `electron/*` | `npm test`, `npm run build` | HDR environment, thumbnails, external GLTF dependencies remain |
+| 6 | Value-bearing animation foundation | `src/editor/animation/*`, `src/state/editorStore.ts` | `npm test`, `npm run build` | Easing and curves remain |
+| 7 | Versioned WebDocument, CodeMirror code buffer, generator, sandboxed preview | `src/editor/web/*`, `src/App.tsx` | `npm test`, `npm run build` | Monaco-level IDE features and arbitrary code-to-scene sync remain |
+| 8 | Electron static export foundation | `src/editor/web/exportPaths.ts`, `electron/*`, preload types | `npm test`, `npm run build`, IPC syntax check | Archive export and offline production verification remain |
 | 9 | Deferred | — | — | Do not start until earlier gates are complete |
 
 ---

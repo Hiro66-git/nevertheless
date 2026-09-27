@@ -1,8 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { projectPayload, useEditorStore } from './state/editorStore'
 import { ThreeViewport } from './editor/viewport/ThreeViewport'
 import type { EditorMode, SceneObject, Tool } from './types'
+import { CodeEditor, formatCode } from './editor/web/CodeEditorPanel'
+import type { WebCodeFile, GeneratedWebFiles } from './editor/web/webDocumentTypes'
+import './editor/web/webStyles.css'
+import { generateWebOutput } from './editor/web/webGenerator'
+import { buildAssetUrlMap } from './editor/web/exportPaths'
+import { PreviewRuntime, type PreviewState } from './editor/web/previewRuntime'
 
 const iconPaths: Record<string, string[]> = {
   logo: ['M12 3.7 20 8v8l-8 4.3L4 16V8l8-4.3Z', 'M12 8.2v8.9', 'M4.4 8.2 12 12l7.6-3.8'],
@@ -67,12 +73,14 @@ function App() {
   const fileRef = useRef<HTMLInputElement>(null)
   const assetFileRef = useRef<HTMLInputElement>(null)
   const {
-    mode, setMode, activeTool, setTool, selectedId, selectObject, objects, projectName, setDevice, device,
+    mode, setMode, activeTool, setTool, selectedId, selectObject, objects, projectName, setDevice, device, document: editorDocument,
     snapToGrid, toggleSnap, showGrid, toggleGrid, undo, redo, past, future, saveProject, projectDirty,
     currentTime, setTime, isPlaying, togglePlaying, duplicateSelected, deleteSelected, groupSelected, addKeyframe, selectedIds,
+    webCodeDirty,
   } = useEditorStore()
   const selected = objects.find((object) => object.id === selectedId) ?? null
   const visibleObjects = objects.filter((object) => object.name.toLowerCase().includes(layerQuery.toLowerCase()))
+  const generatedOutput = useMemo(() => generateWebOutput(editorDocument), [editorDocument])
 
   const notify = (message: string) => {
     setToast(message)
@@ -80,6 +88,7 @@ function App() {
   }
 
   const handleSave = () => {
+    if (webCodeDirty) { notify('Commit or revert code changes before saving the project'); return }
     const data = projectPayload(useEditorStore.getState())
     if (window.webforge) {
       void window.webforge.saveProject(data).then((result) => {
@@ -98,13 +107,21 @@ function App() {
   }
 
   const handleExport = () => {
-    const html = exportHtml(useEditorStore.getState().objects, projectName)
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-    link.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-site.html`
-    link.click()
-    URL.revokeObjectURL(link.href)
-    notify('Production preview exported as HTML')
+    if (webCodeDirty) { notify('Commit or revert code changes before exporting'); return }
+    if (!window.webforge) { notify('Static export requires the Electron desktop shell'); return }
+    const output = generateWebOutput(editorDocument, { assetUrls: buildAssetUrlMap(editorDocument.assets, true) })
+    void window.webforge.exportProject({
+      projectName,
+      files: [
+        { path: 'index.html', contents: output.indexHtml },
+        { path: 'styles.css', contents: output.stylesCss },
+        { path: 'scene.js', contents: output.sceneJs },
+      ],
+      assets: output.assetFiles.map((asset) => ({ path: asset.path, source: asset.source })),
+    }).then((result) => {
+      if (result.canceled) return
+      notify(`Static export written to ${result.directory ?? 'the selected folder'}`)
+    }).catch((error) => notify(error instanceof Error ? error.message : 'Static export failed'))
   }
 
   const handleOpenFile = (file: File) => {
@@ -134,6 +151,7 @@ function App() {
   }
 
   const openProject = () => {
+    if (webCodeDirty) { notify('Commit or revert code changes before opening another project'); return }
     if (window.webforge) {
       void window.webforge.openProject().then((result) => {
         if (result.payload) {
@@ -166,6 +184,16 @@ function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [deleteSelected, duplicateSelected, groupSelected, redo, undo, setTool, selectedId, togglePlaying])
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!useEditorStore.getState().webCodeDirty) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
 
   useEffect(() => {
     if (!isPlaying) return
@@ -248,13 +276,13 @@ function App() {
 
         <aside className="right-sidebar">
           <div className="inspector-tabs"><button className={inspectorTab === 'properties' ? 'active' : ''} onClick={() => setInspectorTab('properties')}>Inspector</button><button className={inspectorTab === 'code' ? 'active' : ''} onClick={() => setInspectorTab('code')}><Icon name="code" size={14} /> Code</button><button className="tab-more" disabled title="Inspector layout options are outside Milestone 2"><Icon name="more" /></button></div>
-          {inspectorTab === 'code' || mode === 'code' ? <CodeInspector objects={objects} onBack={() => { setInspectorTab('properties'); setMode('design') }} /> : <Inspector object={selected} currentTime={currentTime} onAddKeyframe={() => selected && addKeyframe(selected.id)} />}
+          {inspectorTab === 'code' || mode === 'code' ? <CodeInspector onBack={() => { setInspectorTab('properties'); setMode('design') }} notify={notify} /> : <Inspector object={selected} currentTime={currentTime} onAddKeyframe={() => selected && addKeyframe(selected.id)} />}
         </aside>
       </main>
 
       <Timeline objects={objects} currentTime={currentTime} setTime={setTime} isPlaying={isPlaying} togglePlaying={togglePlaying} selectedId={selectedId} onSelect={selectObject} onAddKeyframe={() => selected && addKeyframe(selected.id)} />
       <CommandPalette open={commandOpen} close={() => setCommandOpen(false)} onAction={(action) => { setCommandOpen(false); action() }} notify={notify} />
-      {previewOpen && <PreviewModal html={exportHtml(objects, projectName)} close={() => setPreviewOpen(false)} />}
+      {previewOpen && <PreviewModal output={generatedOutput} close={() => setPreviewOpen(false)} />}
       {toast && <div className="toast"><span className="toast-check">✓</span>{toast}</div>}
     </div>
   )
@@ -291,8 +319,29 @@ function Inspector({ object, currentTime, onAddKeyframe }: { object: SceneObject
 
 function TransformField({ label, value, suffix, onChange }: { label: string; value: number; suffix?: string; onChange: (value: number) => void }) { return <label className="transform-field"><span>{label}</span><input type="number" step="0.01" value={Number(value.toFixed(2))} onChange={(event) => onChange(Number(event.target.value))} /><em>{suffix}</em></label> }
 function SectionHeader({ label, icon, right }: { label: string; icon: string; right?: ReactNode }) { return <div className="section-header"><span><Icon name={icon} size={14} />{label}</span>{right ?? <Icon name="down" size={13} />}</div> }
-function CodeInspector({ objects, onBack }: { objects: SceneObject[]; onBack: () => void }) { const snippet = `const scene = new THREE.Scene()\n\nconst heroOrb = new THREE.Mesh(\n  new THREE.SphereGeometry(0.95, 64, 32),\n  new THREE.MeshPhysicalMaterial({\n    color: '${objects[0]?.color ?? '#77e5ca'}',\n    roughness: ${objects[0]?.roughness ?? 0.16},\n    metalness: ${objects[0]?.metalness ?? 0.22}\n  })\n)\nheroOrb.position.set(${objects[0]?.position.map((value) => value.toFixed(2)).join(', ') ?? '0, 0, 0'})\nscene.add(heroOrb)`; return <div className="code-inspector"><div className="code-header"><span><span className="file-dot green" /> scene.ts</span><button onClick={onBack}>Back to inspector</button></div><div className="code-editor"><pre>{snippet.split('\n').map((line, i) => <code key={i}><i>{String(i + 1).padStart(2, '0')}</i><span>{highlightCode(line)}</span></code>)}</pre></div><div className="code-footer"><span><i className="status-dot" /> Generated from scene</span><button onClick={() => navigator.clipboard?.writeText(snippet)}>Copy code</button></div></div> }
-function highlightCode(line: string) { const parts = line.split(/(const|new|THREE\.[A-Za-z]+|color|roughness|metalness|position|scene|add|true|false|'[^']*'|\d+(?:\.\d+)?)/g); return parts.map((part, index) => <span key={index} className={/^(const|new)$/.test(part) ? 'tok-key' : /^THREE\./.test(part) ? 'tok-class' : /^(color|roughness|metalness|position|scene|add)$/.test(part) ? 'tok-prop' : /^'/.test(part) ? 'tok-string' : /^\d/.test(part) ? 'tok-number' : ''}>{part}</span>) }
+function CodeInspector({ onBack, notify }: { onBack: () => void; notify: (message: string) => void }) {
+  const [file, setFile] = useState<WebCodeFile>('html')
+  const [closeRequested, setCloseRequested] = useState(false)
+  const { beginCodeEdit, webCodeBuffer, webCodeDirty, updateCodeBuffer, commitCode, revertCode, lastError } = useEditorStore()
+  useEffect(() => { beginCodeEdit() }, [beginCodeEdit])
+  const value = webCodeBuffer?.[file] ?? ''
+  const commit = () => {
+    if (commitCode()) { setCloseRequested(false); notify('Web code committed') }
+  }
+  const close = () => {
+    if (webCodeDirty) { setCloseRequested(true); return }
+    onBack()
+  }
+  return <div className="code-inspector">
+    <div className="code-header"><span><span className="file-dot green" /> {file === 'js' ? 'scene.js' : file === 'html' ? 'body.html' : 'styles.css'}</span><button onClick={close}>Back to inspector</button></div>
+    <div className="code-file-tabs">{(['html', 'css', 'js'] as WebCodeFile[]).map((item) => <button key={item} className={file === item ? 'active' : ''} onClick={() => setFile(item)}>{item.toUpperCase()}</button>)}</div>
+    <div className="code-scope-note">Editing user-owned {file.toUpperCase()} source. Scene markup/bootstrap remains generated and is never overwritten by this buffer.</div>
+    <div className="code-editor code-editor-codemirror"><CodeEditor file={file} value={value} onChange={(next) => updateCodeBuffer(file, next)} /></div>
+    {closeRequested && <div className="code-warning">Unsaved code changes are still in the project buffer. Commit or revert before leaving this panel.</div>}
+    {lastError && <div className="code-warning">{lastError}</div>}
+    <div className="code-footer"><span><i className={webCodeDirty ? 'status-dot warning' : 'status-dot'} /> {webCodeDirty ? 'Unsaved code changes' : 'Committed web code'}</span><span className="code-actions"><button onClick={() => updateCodeBuffer(file, formatCode(file, value))}>Format</button><button onClick={revertCode} disabled={!webCodeDirty}>Revert</button><button onClick={commit} disabled={!webCodeDirty}>Commit</button></span></div>
+  </div>
+}
 
 function Timeline({ objects, currentTime, setTime, isPlaying, togglePlaying, selectedId, onSelect, onAddKeyframe }: { objects: SceneObject[]; currentTime: number; setTime: (time: number) => void; isPlaying: boolean; togglePlaying: () => void; selectedId: string | null; onSelect: (id: string) => void; onAddKeyframe: () => void }) {
   const tickMarks = Array.from({ length: 13 }, (_, i) => i * 4)
@@ -306,13 +355,22 @@ function CommandPalette({ open, close, onAction, notify }: { open: boolean; clos
   return <div className="modal-backdrop" onMouseDown={close}><div className="command-palette" onMouseDown={(event) => event.stopPropagation()}><div className="command-search"><Icon name="search" /><input autoFocus placeholder="Search tools, layers, assets…" /><kbd>ESC</kbd></div><div className="command-section-label">QUICK ACTIONS</div>{commands.map((command, i) => <button key={command.label} className={`command-row ${i === 0 ? 'focused' : ''}`} onClick={() => onAction(() => { command.action(); notify(command.label) })}><span className="command-icon"><Icon name={command.icon} size={15} /></span><span>{command.label}</span>{command.shortcut && <kbd>{command.shortcut}</kbd>}</button>)}<div className="command-footer"><span>↑↓ Navigate</span><span>↵ Run command</span><span>⌘K Toggle</span></div></div></div>
 }
 
-function PreviewModal({ html, close }: { html: string; close: () => void }) {
-  return <div className="preview-backdrop" onMouseDown={close}><div className="preview-window" onMouseDown={(event) => event.stopPropagation()}><div className="preview-window-head"><div className="preview-window-title"><span className="live-pulse" /> Preview <span>/</span> Lumen / Launch Experience</div><div className="preview-window-actions"><span>1440 × 900</span><button onClick={close}><Icon name="more" size={15} /></button><button className="close-preview" onClick={close}>×</button></div></div><iframe title="Published WebForge preview" srcDoc={html} /></div></div>
+function PreviewModal({ output, close }: { output: GeneratedWebFiles; close: () => void }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const runtimeRef = useRef<PreviewRuntime | null>(null)
+  const [state, setState] = useState<PreviewState>({ status: 'idle', errors: [] })
+  useEffect(() => {
+    if (!iframeRef.current) return
+    const runtime = new PreviewRuntime(iframeRef.current, setState)
+    runtimeRef.current = runtime
+    return () => { runtime.dispose(); runtimeRef.current = null }
+  }, [])
+  useEffect(() => { runtimeRef.current?.update(output) }, [output])
+  return <div className="preview-backdrop" onMouseDown={close}><div className="preview-window" onMouseDown={(event) => event.stopPropagation()}><div className="preview-window-head"><div className="preview-window-title"><span className="live-pulse" /> Preview <span>/</span> {output.indexHtml.match(/<title>(.*?)<\/title>/)?.[1] ?? 'Project'}</div><div className="preview-window-actions"><span className={`preview-status ${state.status}`}>{state.status}</span><button onClick={() => runtimeRef.current?.reload()}>Reload</button><button className="close-preview" onClick={close}>×</button></div></div><iframe ref={iframeRef} title="Generated project preview" sandbox="allow-scripts" /><div className="preview-errors">{state.errors.map((error, index) => <details key={`${error.message}-${index}`} open><summary>{error.source ?? 'preview'}{error.line ? `:${error.line}:${error.column ?? 0}` : ''} — {error.message}</summary>{error.stack && <pre>{error.stack}</pre>}</details>)}</div></div></div>
 }
 
 function radToDeg(value: number) { return value * 180 / Math.PI }
 function degToRad(value: number) { return value * Math.PI / 180 }
 function formatTime(frame: number) { return `00:00:${String(Math.floor(frame / 24)).padStart(2, '0')}.${String(frame % 24).padStart(2, '0')}` }
-function exportHtml(objects: SceneObject[], name: string) { const scene = JSON.stringify(objects); return `<!doctype html>\n<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${name}</title><style>html,body{margin:0;height:100%;background:#0d1115;color:#eef3f1;font:16px system-ui;overflow:hidden}main{height:100%;display:grid;place-items:center;background:radial-gradient(circle at 50% 42%,#173b3c,#0d1115 55%)}h1{font-weight:500;letter-spacing:-.04em;font-size:clamp(42px,8vw,120px);margin:0}p{color:#91a29f;letter-spacing:.14em;text-transform:uppercase;font-size:11px;text-align:center}</style></head><body><main><div><p>WebForge Visual / published scene</p><h1>Lumen / 24</h1></div></main><script>window.__WEBFORGE_SCENE__=${scene}</script></body></html>` }
 
 export default App

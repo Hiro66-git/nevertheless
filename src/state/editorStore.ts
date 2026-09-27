@@ -7,6 +7,9 @@ import type { EditorCommand } from '../editor/commands/command'
 import { pushCommand, pushFutureCommand } from '../editor/history/commandHistory'
 import { cloneDocument, createDocumentFromObjects, documentToSceneObjects, projectFromUnknown, sceneObjectForEntity } from '../editor/document/document'
 import type { EditorDocument } from '../editor/document/types'
+import type { WebCodeFile } from '../editor/web/webDocumentTypes'
+import { createDefaultWebDocument, validateWebDocument } from '../editor/web/webDocument'
+import { UpdateWebDocumentCommand } from '../editor/web/webCommands'
 
 const initialObjects: SceneObject[] = [
   { id: 'hero-orb', name: 'Hero Orb', kind: 'mesh', shape: 'sphere', position: [0, 0.55, 0], rotation: [0, 0.35, 0], scale: [1.2, 1.2, 1.2], color: '#77e5ca', accent: '#b7fff0', metalness: 0.22, roughness: 0.16, opacity: 1, visible: true, locked: false, keyframes: [0, 24, 48] },
@@ -18,6 +21,22 @@ const initialObjects: SceneObject[] = [
 
 const selectedDefault = 'hero-orb'
 const historyLimit = 100
+
+type WebCodeBuffer = Record<WebCodeFile, string>
+
+const webForDocument = (document: EditorDocument) => document.web ?? createDefaultWebDocument(document.project.name)
+const codeBufferForDocument = (document: EditorDocument): WebCodeBuffer => {
+  const web = webForDocument(document)
+  return { html: web.html.body.userSource, css: web.css.userSource, js: web.scripts.userSource }
+}
+
+const webWithCodeBuffer = (document: EditorDocument, buffer: WebCodeBuffer) => {
+  const web = cloneDocument(document).web ?? createDefaultWebDocument(document.project.name)
+  web.html.body.userSource = buffer.html
+  web.css.userSource = buffer.css
+  web.scripts.userSource = buffer.js
+  return validateWebDocument(web).document
+}
 
 export interface EditorState {
   projectName: string
@@ -37,6 +56,8 @@ export interface EditorState {
   projectDirty: boolean
   lastSaved: string
   lastError: string | null
+  webCodeBuffer: WebCodeBuffer | null
+  webCodeDirty: boolean
   selectObject: (id: string | null, additive?: boolean) => void
   clearSelection: () => void
   setTool: (tool: Tool) => void
@@ -58,6 +79,10 @@ export interface EditorState {
   addKeyframe: (id: string, time?: number) => void
   addKeyframeForProperty: (id: string, property: AnimationProperty, time?: number) => void
   importAsset: (file: File) => Promise<boolean>
+  beginCodeEdit: () => void
+  updateCodeBuffer: (file: WebCodeFile, value: string) => void
+  commitCode: () => boolean
+  revertCode: () => void
   undo: () => void
   redo: () => void
   saveProject: () => void
@@ -92,6 +117,7 @@ const applyCommand = (state: EditorState, command: EditorCommand, selectedId = s
 }
 
 const selectedPatch = (document: EditorDocument, id: string, patch: Partial<SceneObject>) => commandForScenePatch(document, id, patch)
+const codeStateAfterDocument = (state: EditorState, document: EditorDocument) => state.webCodeDirty ? { webCodeBuffer: state.webCodeBuffer, webCodeDirty: true } : { webCodeBuffer: codeBufferForDocument(document), webCodeDirty: false }
 
 const selectionRoots = (document: EditorDocument, selectedIds: string[]) => {
   const ids = new Set(selectedIds)
@@ -147,6 +173,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   projectDirty: false,
   lastSaved: '09:41:12',
   lastError: null,
+  webCodeBuffer: null,
+  webCodeDirty: false,
   selectObject: (id, additive = false) => set((state) => {
     if (!id) return { selectedId: null, selectedIds: [] }
     const current = state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : []
@@ -329,19 +357,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return false
     }
   },
+  beginCodeEdit: () => set((state) => state.webCodeBuffer ? state : { webCodeBuffer: codeBufferForDocument(state.document), webCodeDirty: false }),
+  updateCodeBuffer: (file, value) => set((state) => {
+    const buffer = state.webCodeBuffer ?? codeBufferForDocument(state.document)
+    const next = { ...buffer, [file]: value }
+    const committed = codeBufferForDocument(state.document)
+    return { webCodeBuffer: next, webCodeDirty: next.html !== committed.html || next.css !== committed.css || next.js !== committed.js, lastError: null }
+  }),
+  commitCode: () => {
+    const state = get()
+    if (!state.webCodeBuffer) return true
+    try {
+      const before = webForDocument(state.document)
+      const after = webWithCodeBuffer(state.document, state.webCodeBuffer)
+      set((current) => ({ ...applyCommand(current, new UpdateWebDocumentCommand(before, after)), webCodeBuffer: codeBufferForDocument({ ...current.document, web: after } as EditorDocument), webCodeDirty: false }))
+      return true
+    } catch (error) {
+      set({ lastError: error instanceof Error ? error.message : 'Unable to commit web code' })
+      return false
+    }
+  },
+  revertCode: () => set((state) => ({ webCodeBuffer: codeBufferForDocument(state.document), webCodeDirty: false, lastError: null })),
   undo: () => set((state) => {
     const command = state.past.at(-1)
     if (!command) return state
     const document = cloneDocument(state.document)
     command.undo(document)
-    return { ...stateForDocument(document, state.selectedId, state.selectedIds), past: state.past.slice(0, -1), future: pushFutureCommand(state.future, command, historyLimit), projectDirty: true, lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), ...codeStateAfterDocument(state, document), past: state.past.slice(0, -1), future: pushFutureCommand(state.future, command, historyLimit), projectDirty: true, lastError: null }
   }),
   redo: () => set((state) => {
     const command = state.future[0]
     if (!command) return state
     const document = cloneDocument(state.document)
     command.execute(document)
-    return { ...stateForDocument(document, state.selectedId, state.selectedIds), past: pushCommand(state.past, command, historyLimit), future: state.future.slice(1), projectDirty: true, lastError: null }
+    return { ...stateForDocument(document, state.selectedId, state.selectedIds), ...codeStateAfterDocument(state, document), past: pushCommand(state.past, command, historyLimit), future: state.future.slice(1), projectDirty: true, lastError: null }
   }),
   saveProject: () => set((state) => {
     const document = cloneDocument(state.document)
@@ -352,7 +401,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     try {
       const parsed = JSON.parse(payload) as unknown
       const document = projectFromUnknown(parsed)
-      set({ ...stateForDocument(document, Object.keys(document.scene.entities).find((id) => id !== document.scene.rootId) ?? null), past: [], future: [], projectDirty: false, lastError: null, device: document.settings.viewport.device, showGrid: document.settings.grid.visible, snapToGrid: document.settings.snap.enabled })
+      set({ ...stateForDocument(document, Object.keys(document.scene.entities).find((id) => id !== document.scene.rootId) ?? null), webCodeBuffer: null, webCodeDirty: false, past: [], future: [], projectDirty: false, lastError: null, device: document.settings.viewport.device, showGrid: document.settings.grid.visible, snapToGrid: document.settings.snap.enabled })
       return true
     } catch (error) {
       set({ lastError: error instanceof Error ? error.message : 'Unable to load project' })
@@ -361,7 +410,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   resetScene: () => set((state) => {
     const document = createDocumentFromObjects(initialObjects, 'Lumen / Launch Experience')
-    return { ...stateForDocument(document, selectedDefault), past: [], future: [], projectDirty: true, lastError: null, device: 'desktop', showGrid: true, snapToGrid: true }
+    return { ...stateForDocument(document, selectedDefault), webCodeBuffer: null, webCodeDirty: false, past: [], future: [], projectDirty: true, lastError: null, device: 'desktop', showGrid: true, snapToGrid: true }
   }),
   executeCommand: (command, selectionId) => set((state) => applyCommand(state, command, selectionId)),
 }))
