@@ -1,15 +1,16 @@
 import { documentToSceneObjects } from '../document/document'
 import type { EditorDocument } from '../document/types'
 import { buildAssetUrlMap } from './exportPaths'
+import { generatedRegion } from './generatedRegions'
 import { createDefaultWebDocument } from './webDocument'
 import type { GeneratedWebFiles, WebDocument, WebElementNode, WebGenerationSettings } from './webDocumentTypes'
 
 const THREE_MODULE_URL = 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js'
 const GLTF_LOADER_URL = 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js'
-const GENERATED_START = '<!-- webforge:generated:scene:start -->'
-const GENERATED_END = '<!-- webforge:generated:scene:end -->'
-const USER_START = '<!-- webforge:user:html:start -->'
-const USER_END = '<!-- webforge:user:html:end -->'
+const USER_HTML_START = '<!-- webforge:user:html:start -->'
+const USER_HTML_END = '<!-- webforge:user:html:end -->'
+const USER_CSS_START = '/* webforge:user:css:start */'
+const USER_CSS_END = '/* webforge:user:css:end */'
 
 export const escapeHtml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
 export const escapeScriptData = (value: string) => value.replaceAll('</script', '<\\/script').replaceAll('<!--', '<\\!--').replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029')
@@ -53,9 +54,10 @@ const makeSceneData = (document: EditorDocument, assetUrls: Record<string, strin
 const sceneScript = (document: EditorDocument, web: WebDocument, assetUrls: Record<string, string>) => {
   const data = escapeScriptData(JSON.stringify(makeSceneData(document, assetUrls)))
   const userScript = web.scripts.userSource
-  return `const WEBFORGE_PROTOCOL = 'webforge-preview';
+  const sceneDataRegion = generatedRegion('scene-data', `const sceneData = ${data};`, 'js')
+  return `${sceneDataRegion}
+const WEBFORGE_PROTOCOL = 'webforge-preview';
 const WEBFORGE_PROTOCOL_VERSION = 1;
-const sceneData = ${data};
 const report = (kind, error, extra = {}) => {
   const value = error instanceof Error ? error : new Error(String(error));
   window.parent.postMessage({ protocol: WEBFORGE_PROTOCOL, version: WEBFORGE_PROTOCOL_VERSION, previewId: globalThis.__WEBFORGE_PREVIEW_ID__ || '', type: kind, error: { message: value.message, stack: value.stack || '', line: extra.line || null, column: extra.column || null, source: extra.source || 'scene.js' } }, '*');
@@ -114,8 +116,8 @@ export const generateWebOutput = (document: EditorDocument, settings: WebGenerat
   const web = normalizedWeb(document)
   const assetUrls = settings.assetUrls ?? buildAssetUrlMap(document.assets)
   const sections = web.html.body.sections.map(serializeNode).join('\n')
-  const indexHtml = `<!doctype html>\n<html lang="${escapeHtml(web.metadata.lang)}">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' blob:; img-src 'self' data: blob:; connect-src 'none'">\n<meta name="description" content="${escapeHtml(web.metadata.description)}">\n<title>${escapeHtml(web.metadata.title)}</title>\n${web.html.headSource}\n<link rel="stylesheet" href="./styles.css">\n</head>\n<body>\n${sections}\n${USER_START}\n${web.html.body.userSource}\n${USER_END}\n${GENERATED_START}\n<div id="${escapeHtml(web.html.body.sceneMountId)}" class="webforge-scene" data-webforge-scene="${escapeHtml(web.html.body.sceneMountId)}"></div>\n${GENERATED_END}\n<script type="importmap">${JSON.stringify({ imports: { three: THREE_MODULE_URL } })}</script>\n<script type="module" src="./scene.js"></script>\n</body>\n</html>\n`
-  const stylesCss = `${generatedCss}\n\n/* ${USER_START} */\n${web.css.userSource}\n/* ${USER_END} */\n`
+  const indexHtml = `<!doctype html>\n<html lang="${escapeHtml(web.metadata.lang)}">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' blob:; img-src 'self' data: blob:; connect-src 'none'">\n<meta name="description" content="${escapeHtml(web.metadata.description)}">\n<title>${escapeHtml(web.metadata.title)}</title>\n${web.html.headSource}\n<link rel="stylesheet" href="./styles.css">\n</head>\n<body>\n${sections}\n${USER_HTML_START}\n${web.html.body.userSource}\n${USER_HTML_END}\n${generatedRegion('scene-mount', `<div id="${escapeHtml(web.html.body.sceneMountId)}" class="webforge-scene" data-webforge-scene="${escapeHtml(web.html.body.sceneMountId)}"></div>`, 'html')}\n<script type="importmap">${JSON.stringify({ imports: { three: THREE_MODULE_URL } })}</script>\n<script type="module" src="./scene.js"></script>\n</body>\n</html>\n`
+  const stylesCss = `${generatedRegion('styles', generatedCss, 'css')}\n${USER_CSS_START}\n${web.css.userSource}\n${USER_CSS_END}\n`
   const sceneJs = sceneScript(document, web, assetUrls)
   const assetFiles = Object.values(document.assets).sort((a, b) => a.id.localeCompare(b.id)).map((asset) => ({ path: assetUrls[asset.id] ?? '', source: asset.source, name: asset.name })).filter((asset) => asset.path.startsWith('assets/'))
   return { indexHtml, stylesCss, sceneJs, assetFiles }

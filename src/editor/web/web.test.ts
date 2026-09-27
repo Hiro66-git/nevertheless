@@ -5,6 +5,7 @@ import { createDefaultWebDocument, validateWebDocument } from './webDocument'
 import { escapeHtml, escapeScriptData, generateWebOutput } from './webGenerator'
 import { parsePreviewMessage } from './previewProtocol'
 import { assetExportPath, validateRelativeExportPath } from './exportPaths'
+import { mergeGeneratedRegions, parseGeneratedRegions } from './generatedRegions'
 import { useEditorStore } from '../../state/editorStore'
 
 const sceneObject: SceneObject = {
@@ -56,9 +57,30 @@ describe('WebDocument and generator', () => {
     document.web!.scripts.userSource = "document.body.dataset.user = 'yes'"
     const output = generateWebOutput(document)
     expect(output.indexHtml).toContain('data-owned="user"')
-    expect(output.indexHtml).toContain('webforge:generated:scene:start')
+    expect(output.indexHtml).toContain('webforge:generated:scene-mount:start')
     expect(output.stylesCss).toContain('.user-section')
     expect(output.sceneJs).toContain("document.body.dataset.user")
+    expect(parseGeneratedRegions(output.stylesCss).regions.map((region) => region.id)).toContain('styles')
+    expect(parseGeneratedRegions(output.sceneJs).regions.map((region) => region.id)).toContain('scene-data')
+  })
+
+  it('three-way merges generated regions while preserving user source and reporting conflicts', () => {
+    const document = createDocumentFromObjects([sceneObject], 'Project')
+    document.web!.html.body.userSource = '<section>User source</section>'
+    const previous = generateWebOutput(document)
+    const changedDocument = cloneDocument(document)
+    changedDocument.scene.entities['mesh-one'].transform.position = [2, 0, 0]
+    changedDocument.web!.html.body.sceneMountId = 'another-mount'
+    const next = generateWebOutput(changedDocument)
+    const authored = previous.indexHtml.replace('User source', 'Edited user source')
+    const merged = mergeGeneratedRegions(previous.indexHtml, next.indexHtml, authored)
+    expect(merged.conflicts).toEqual([])
+    expect(merged.source).toContain('Edited user source')
+    expect(merged.source).toContain('id="another-mount"')
+    const tampered = previous.indexHtml.replace('webforge-scene', 'user-changed-scene')
+    const conflict = mergeGeneratedRegions(previous.indexHtml, next.indexHtml, tampered)
+    expect(conflict.conflicts.some((item) => item.reason === 'changed-by-both')).toBe(true)
+    expect(parseGeneratedRegions(previous.indexHtml).errors).toEqual([])
   })
 
   it('rejects malformed web data and supplies defaults to older v2 projects', () => {

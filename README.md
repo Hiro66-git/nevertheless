@@ -157,7 +157,7 @@ npm run build
 - Scene data deterministically generates separate `index.html`, `styles.css`, and `scene.js` files.
 - HTML/CSS/JavaScript user regions are edited with CodeMirror syntax highlighting.
 - Code typing stays in a temporary buffer and commits as one undoable project mutation.
-- Generated scene regions are marked and user-owned regions are preserved.
+- Generated scene regions are marked and user-owned regions are preserved; three-way merges report conflicts instead of overwriting changed generated regions.
 - Preview uses a sandboxed iframe, explicit versioned messages, debounced reloads, loading state, runtime errors, and disposal.
 
 **Still open:** Monaco-level IDE features, richer structured HTML authoring, and two-way visual editing of arbitrary user code.
