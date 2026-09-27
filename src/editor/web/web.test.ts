@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import * as ts from 'typescript'
 import { createDocumentFromObjects, cloneDocument, projectFromUnknown } from '../document/document'
 import type { SceneObject } from '../../types'
+import type { EditorDocument } from '../document/types'
+import type { WebDocument } from './webDocumentTypes'
 import { createDefaultWebDocument, validateWebDocument } from './webDocument'
 import { escapeHtml, escapeScriptData, generateWebOutput } from './webGenerator'
 import { parsePreviewMessage } from './previewProtocol'
 import { assetExportPath, validateRelativeExportPath } from './exportPaths'
 import { mergeGeneratedRegions, parseGeneratedRegions } from './generatedRegions'
-import { useEditorStore } from '../../state/editorStore'
+import { projectPayload, useEditorStore } from '../../state/editorStore'
 
 const sceneObject: SceneObject = {
   id: 'mesh-one', name: 'Mesh One', kind: 'mesh', shape: 'box', position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
@@ -35,7 +38,7 @@ describe('WebDocument and generator', () => {
     expect(outputA.indexHtml).toContain('styles.css')
     expect(outputA.indexHtml).toContain('scene.js')
     expect(outputA.sceneJs).toContain('mesh-one')
-    expect(() => new Function(outputA.sceneJs)).not.toThrow()
+    expect(ts.transpileModule(outputA.sceneJs, { reportDiagnostics: true, compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).diagnostics ?? []).toEqual([])
     expect(outputA.sceneJs).not.toMatch(/Date\.now|Math\.random/)
   })
 
@@ -83,13 +86,70 @@ describe('WebDocument and generator', () => {
     expect(parseGeneratedRegions(previous.indexHtml).errors).toEqual([])
   })
 
-  it('rejects malformed web data and supplies defaults to older v2 projects', () => {
+  it('rejects malformed or unsafe web data and supplies defaults to older v2 projects', () => {
     expect(() => validateWebDocument({ version: 1, metadata: {}, html: {}, css: {}, scripts: {} })).toThrow()
+    const unsafe = createDefaultWebDocument('Unsafe')
+    unsafe.html.body.sections[0].tag = 'script' as never
+    expect(() => validateWebDocument(unsafe)).toThrow(/unsafe/i)
+    unsafe.html.body.sections[0].tag = 'div'
+    unsafe.html.body.sections[0].attributes.onclick = 'alert(1)'
+    expect(() => validateWebDocument(unsafe)).toThrow(/not allowed/i)
+    unsafe.html.body.sections[0].attributes = { href: 'javascript:alert(1)' }
+    expect(() => validateWebDocument(unsafe)).toThrow(/unsafe URL/i)
+    unsafe.html.body.sections[0].attributes = { class: 'safe' }
+    unsafe.html.headSource = '<script>alert(1)</script>'
+    expect(() => validateWebDocument(unsafe)).toThrow(/unsafe markup/i)
     const legacyV2 = createDocumentFromObjects([], 'Legacy v2')
     delete legacyV2.web
     const loaded = projectFromUnknown(legacyV2)
     expect(loaded.web?.version).toBe(1)
     expect(loaded.web?.metadata.title).toBe('Legacy v2')
+    const futureCompatible = createDocumentFromObjects([], 'Future') as EditorDocument & { web: WebDocument & { futureField?: string } }
+    futureCompatible.web.futureField = 'preserved'
+    expect((projectFromUnknown(futureCompatible).web as WebDocument & { futureField?: string }).futureField).toBe('preserved')
+  })
+})
+
+describe('visual and web synchronization', () => {
+  it('regenerates visual changes without replacing user code and supports undo/redo', () => {
+    const store = useEditorStore.getState()
+    store.beginCodeEdit()
+    store.updateCodeBuffer('js', 'document.body.dataset.keep = \'yes\'')
+    expect(store.commitCode()).toBe(true)
+    const before = generateWebOutput(useEditorStore.getState().document)
+    useEditorStore.getState().updateObject('hero-orb', { position: [4, 5, 6], rotation: [0.1, 0.2, 0.3], scale: [2, 3, 4], visible: false, roughness: 0.8 })
+    useEditorStore.getState().addKeyframeForProperty('hero-orb', 'position', 12)
+    const changed = generateWebOutput(useEditorStore.getState().document)
+    expect(changed.sceneJs).not.toBe(before.sceneJs)
+    expect(changed.sceneJs).toContain('"position":[4,5,6]')
+    expect(changed.sceneJs).toContain('"rotation":[0.1,0.2,0.3]')
+    expect(changed.sceneJs).toContain('"scale":[2,3,4]')
+    expect(changed.sceneJs).toContain('"visible":false')
+    expect(changed.sceneJs).toContain('"time":12')
+    expect(changed.sceneJs).toContain('document.body.dataset.keep')
+    useEditorStore.getState().undo()
+    useEditorStore.getState().undo()
+    expect(generateWebOutput(useEditorStore.getState().document).sceneJs).toBe(before.sceneJs)
+    useEditorStore.getState().redo()
+    useEditorStore.getState().redo()
+    expect(generateWebOutput(useEditorStore.getState().document).sceneJs).toBe(changed.sceneJs)
+    expect(useEditorStore.getState().document.web?.scripts.userSource).toContain('dataset.keep')
+  })
+
+  it('persists committed HTML, CSS, and JavaScript through save/load', () => {
+    const store = useEditorStore.getState()
+    store.beginCodeEdit()
+    store.updateCodeBuffer('html', '<section>persisted</section>')
+    store.updateCodeBuffer('css', '.persisted { color: red; }')
+    store.updateCodeBuffer('js', 'document.body.dataset.persisted = "yes"')
+    expect(store.commitCode()).toBe(true)
+    const payload = projectPayload(useEditorStore.getState())
+    useEditorStore.getState().resetScene()
+    expect(useEditorStore.getState().loadProject(payload)).toBe(true)
+    const web = useEditorStore.getState().document.web!
+    expect(web.html.body.userSource).toContain('persisted')
+    expect(web.css.userSource).toContain('.persisted')
+    expect(web.scripts.userSource).toContain('dataset.persisted')
   })
 })
 
@@ -106,14 +166,19 @@ describe('web code buffer', () => {
     expect(useEditorStore.getState().past.at(-1)?.label).toBe('Commit web code')
     useEditorStore.getState().undo()
     expect(useEditorStore.getState().document.web?.html.body.userSource).toBe('')
+    useEditorStore.getState().redo()
+    expect(useEditorStore.getState().document.web?.html.body.userSource).toContain('User authored')
   })
 
-  it('reverts a dirty buffer without changing committed web code', () => {
+  it('reverts a dirty buffer without changing committed web code or saved-state accuracy', () => {
     const store = useEditorStore.getState()
+    store.saveProject()
     store.beginCodeEdit()
     store.updateCodeBuffer('css', 'body { color: red; }')
+    expect(useEditorStore.getState().projectDirty).toBe(true)
     store.revertCode()
     expect(useEditorStore.getState().webCodeDirty).toBe(false)
+    expect(useEditorStore.getState().projectDirty).toBe(false)
     expect(useEditorStore.getState().document.web?.css.userSource).toBe('')
   })
 })

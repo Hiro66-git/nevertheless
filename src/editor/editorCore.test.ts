@@ -5,6 +5,7 @@ import type { SceneObject } from '../types'
 import { evaluateTrack } from './animation/animationEvaluator'
 import { useEditorStore } from '../state/editorStore'
 import { MaterialManager, materialKeyForObject } from './materials/materialManager'
+import { transformCommitIfChanged } from './scene/sceneRuntime'
 
 const object = (id: string, parentId?: string): SceneObject => ({
   id,
@@ -71,6 +72,13 @@ describe('commands', () => {
     expect(document.scene.entities['new-entity']).toBeDefined()
     command.undo(document)
     expect(document.scene.entities['new-entity']).toBeUndefined()
+  })
+
+  it('emits one transform commit only when a drag changes the transform', () => {
+    const before = { position: [0, 0, 0] as [number, number, number], rotation: [0, 0, 0] as [number, number, number], scale: [1, 1, 1] as [number, number, number] }
+    expect(transformCommitIfChanged(before, before)).toBeNull()
+    const after = { ...before, position: [1, 0, 0] as [number, number, number] }
+    expect(transformCommitIfChanged(before, after)).toEqual(after)
   })
 })
 

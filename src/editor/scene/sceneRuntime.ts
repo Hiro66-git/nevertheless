@@ -13,6 +13,12 @@ export type RuntimeTransform = {
   scale: [number, number, number]
 }
 
+export const transformCommitIfChanged = (before: RuntimeTransform, after: RuntimeTransform) => {
+  const beforeValues = [...before.position, ...before.rotation, ...before.scale]
+  const afterValues = [...after.position, ...after.rotation, ...after.scale]
+  return beforeValues.every((value, index) => Math.abs(value - afterValues[index]) < 1e-8) ? null : after
+}
+
 export type SceneRuntimeCallbacks = {
   onSelect: (id: string, additive: boolean) => void
   onEmptySelect: (additive: boolean) => void
@@ -108,7 +114,8 @@ export class SceneRuntime {
       this.transformSession = null
       if (!session) return
       const after = this.readTransform(object)
-      if (!this.sameTransform(session.before, after)) this.callbacks.onTransformCommit(id, session.before, after)
+      const commit = transformCommitIfChanged(session.before, after)
+      if (commit) this.callbacks.onTransformCommit(id, session.before, commit)
     })
     window.addEventListener('keydown', this.handleKeyDown)
 
@@ -470,10 +477,6 @@ export class SceneRuntime {
     object3D.position.set(...transform.position)
     object3D.rotation.set(...transform.rotation)
     object3D.scale.set(...transform.scale)
-  }
-
-  private sameTransform(a: RuntimeTransform, b: RuntimeTransform) {
-    return [...a.position, ...a.rotation, ...a.scale].every((value, index) => Math.abs(value - [...b.position, ...b.rotation, ...b.scale][index]) < 1e-8)
   }
 
   private disposeObject(object3D: THREE.Object3D, managedMaterialId?: string) {

@@ -58,6 +58,7 @@ export interface EditorState {
   lastError: string | null
   webCodeBuffer: WebCodeBuffer | null
   webCodeDirty: boolean
+  webCodeProjectDirtyBefore: boolean
   selectObject: (id: string | null, additive?: boolean) => void
   clearSelection: () => void
   setTool: (tool: Tool) => void
@@ -112,6 +113,7 @@ const applyCommand = (state: EditorState, command: EditorCommand, selectedId = s
     past: pushCommand(state.past, command, historyLimit),
     future: [],
     projectDirty: true,
+    webCodeProjectDirtyBefore: state.webCodeDirty ? true : state.webCodeProjectDirtyBefore,
     lastError: null,
   }
 }
@@ -129,6 +131,14 @@ const selectionRoots = (document: EditorDocument, selectedIds: string[]) => {
     }
     return true
   })
+}
+
+const uniqueEntityId = (document: EditorDocument, base: string) => {
+  const normalized = base.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'entity'
+  if (!document.scene.entities[normalized]) return normalized
+  let index = 2
+  while (document.scene.entities[`${normalized}-${index}`]) index += 1
+  return `${normalized}-${index}`
 }
 
 const assetTypeFor = (file: File): AssetDefinition['type'] | null => {
@@ -175,6 +185,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   lastError: null,
   webCodeBuffer: null,
   webCodeDirty: false,
+  webCodeProjectDirtyBefore: false,
   selectObject: (id, additive = false) => set((state) => {
     if (!id) return { selectedId: null, selectedIds: [] }
     const current = state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : []
@@ -215,7 +226,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const labels: Record<SceneObject['kind'], string> = { mesh: 'Mesh', group: 'Group', light: 'Light', camera: 'Camera', text: 'Text' }
     const sameKind = state.objects.filter((object) => object.kind === kind).length
     const object: SceneObject = {
-      id: `${kind}-${Date.now()}`,
+      id: uniqueEntityId(state.document, `${kind}-${String(sameKind + 1).padStart(2, '0')}`),
       name: `${labels[kind]} ${String(sameKind + 1).padStart(2, '0')}`,
       kind,
       shape: kind === 'group' || kind === 'camera' || kind === 'text' ? undefined : shape,
@@ -238,7 +249,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   duplicateSelected: () => set((state) => {
     const selection = selectionRoots(state.document, state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : [])
     if (!selection.length) return state
-    const ids = selection.map((id) => `${id}-copy-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    const ids = selection.map((id) => uniqueEntityId(state.document, `${id}-copy`))
     const commands = selection.map((id, index) => new DuplicateEntityCommand(state.document, id, ids[index]))
     return applyCommand(state, new CompositeCommand('Duplicate selection', commands), ids[0], ids)
   }),
@@ -253,7 +264,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const selection = selectionRoots(state.document, state.selectedIds.length ? state.selectedIds : state.selectedId ? [state.selectedId] : [])
     const selected = selection[0] ? sceneObjectForEntity(state.document, selection[0]) : undefined
     if (!selected || selection.length < 1 || selection.some((id) => state.document.scene.entities[id]?.type === 'group')) return state
-    const groupId = `group-${Date.now()}`
+    const groupId = uniqueEntityId(state.document, `group-${selection.slice().sort().join('-')}`)
     const group: SceneObject = {
       id: groupId, name: 'Group', kind: 'group', position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
       color: '#91a0ff', accent: '#bec8ff', metalness: 0, roughness: 1, opacity: 1, visible: true, locked: false, keyframes: [], parentId: selected.parentId,
@@ -331,7 +342,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       let selectedId: string | null = state.selectedId
       if (type !== 'hdr') {
         const object: SceneObject = {
-          id: `asset-entity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,          name: file.name.replace(/\.[^/.]+$/, ''),
+          id: uniqueEntityId(state.document, `asset-entity-${asset.id}`),
+          name: file.name.replace(/\.[^/.]+$/, ''),
           kind: 'mesh',
           shape: type === 'image' ? 'plane' : 'box',
           assetId: asset.id,
@@ -357,12 +369,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return false
     }
   },
-  beginCodeEdit: () => set((state) => state.webCodeBuffer ? state : { webCodeBuffer: codeBufferForDocument(state.document), webCodeDirty: false }),
+  beginCodeEdit: () => set((state) => {
+    if (state.webCodeBuffer && state.webCodeDirty) return state
+    return { webCodeBuffer: state.webCodeBuffer ?? codeBufferForDocument(state.document), webCodeDirty: false, webCodeProjectDirtyBefore: state.projectDirty }
+  }),
   updateCodeBuffer: (file, value) => set((state) => {
     const buffer = state.webCodeBuffer ?? codeBufferForDocument(state.document)
     const next = { ...buffer, [file]: value }
     const committed = codeBufferForDocument(state.document)
-    return { webCodeBuffer: next, webCodeDirty: next.html !== committed.html || next.css !== committed.css || next.js !== committed.js, lastError: null }
+    const dirty = next.html !== committed.html || next.css !== committed.css || next.js !== committed.js
+    const baseline = state.webCodeDirty ? state.webCodeProjectDirtyBefore : state.projectDirty
+    return { webCodeBuffer: next, webCodeDirty: dirty, webCodeProjectDirtyBefore: baseline, projectDirty: dirty || state.projectDirty, lastError: null }
   }),
   commitCode: () => {
     const state = get()
@@ -370,14 +387,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     try {
       const before = webForDocument(state.document)
       const after = webWithCodeBuffer(state.document, state.webCodeBuffer)
-      set((current) => ({ ...applyCommand(current, new UpdateWebDocumentCommand(before, after)), webCodeBuffer: codeBufferForDocument({ ...current.document, web: after } as EditorDocument), webCodeDirty: false }))
+      set((current) => ({ ...applyCommand(current, new UpdateWebDocumentCommand(before, after)), webCodeBuffer: codeBufferForDocument({ ...current.document, web: after } as EditorDocument), webCodeDirty: false, webCodeProjectDirtyBefore: false }))
       return true
     } catch (error) {
       set({ lastError: error instanceof Error ? error.message : 'Unable to commit web code' })
       return false
     }
   },
-  revertCode: () => set((state) => ({ webCodeBuffer: codeBufferForDocument(state.document), webCodeDirty: false, lastError: null })),
+  revertCode: () => set((state) => ({ webCodeBuffer: codeBufferForDocument(state.document), webCodeDirty: false, projectDirty: state.webCodeProjectDirtyBefore, webCodeProjectDirtyBefore: false, lastError: null })),
   undo: () => set((state) => {
     const command = state.past.at(-1)
     if (!command) return state
@@ -401,7 +418,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     try {
       const parsed = JSON.parse(payload) as unknown
       const document = projectFromUnknown(parsed)
-      set({ ...stateForDocument(document, Object.keys(document.scene.entities).find((id) => id !== document.scene.rootId) ?? null), webCodeBuffer: null, webCodeDirty: false, past: [], future: [], projectDirty: false, lastError: null, device: document.settings.viewport.device, showGrid: document.settings.grid.visible, snapToGrid: document.settings.snap.enabled })
+      set({ ...stateForDocument(document, Object.keys(document.scene.entities).find((id) => id !== document.scene.rootId) ?? null), webCodeBuffer: null, webCodeDirty: false, webCodeProjectDirtyBefore: false, past: [], future: [], projectDirty: false, lastError: null, device: document.settings.viewport.device, showGrid: document.settings.grid.visible, snapToGrid: document.settings.snap.enabled })
       return true
     } catch (error) {
       set({ lastError: error instanceof Error ? error.message : 'Unable to load project' })
@@ -410,7 +427,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   resetScene: () => set((state) => {
     const document = createDocumentFromObjects(initialObjects, 'Lumen / Launch Experience')
-    return { ...stateForDocument(document, selectedDefault), webCodeBuffer: null, webCodeDirty: false, past: [], future: [], projectDirty: true, lastError: null, device: 'desktop', showGrid: true, snapToGrid: true }
+    return { ...stateForDocument(document, selectedDefault), webCodeBuffer: null, webCodeDirty: false, webCodeProjectDirtyBefore: false, past: [], future: [], projectDirty: true, lastError: null, device: 'desktop', showGrid: true, snapToGrid: true }
   }),
   executeCommand: (command, selectionId) => set((state) => applyCommand(state, command, selectionId)),
 }))

@@ -7,6 +7,11 @@ import { createDefaultWebDocument, validateWebDocument } from '../web/webDocumen
 export const ROOT_ENTITY_ID = 'scene-root'
 
 const now = () => new Date().toISOString()
+const stableId = (value: string) => {
+  let hash = 2166136261
+  for (const character of value) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 const materialFromObject = (object: SceneObject, id: string): MaterialDefinition => ({
@@ -100,7 +105,7 @@ export const createDocumentFromObjects = (objects: SceneObject[], projectName: s
   }
   return {
     version: 2,
-    project: { id: `project-${Date.now()}`, name: projectName, createdAt: timestamp, updatedAt: timestamp },
+    project: { id: `project-${stableId(`${projectName}:${objects.map((object) => object.id).join(',')}`)}`, name: projectName, createdAt: timestamp, updatedAt: timestamp },
     scene: { rootId: ROOT_ENTITY_ID, entities, collections: [] },
     materials,
     assets: {},

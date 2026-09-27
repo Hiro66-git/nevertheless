@@ -151,14 +151,16 @@ npm run build
 
 **Still open:** easing and curve editing.
 
-### Phase 7 — Web development · **Milestone 3 foundation verified**
+### Phase 7 — Web development · **Milestone 3.1 hardened foundation verified**
 
 - Versioned serializable WebDocument state is persisted inside `.wfv` projects.
 - Scene data deterministically generates separate `index.html`, `styles.css`, and `scene.js` files.
 - HTML/CSS/JavaScript user regions are edited with CodeMirror syntax highlighting.
 - Code typing stays in a temporary buffer and commits as one undoable project mutation.
 - Generated scene regions are marked and user-owned regions are preserved; three-way merges report conflicts instead of overwriting changed generated regions.
-- Preview uses a sandboxed iframe, explicit versioned messages, debounced reloads, loading state, runtime errors, and disposal.
+- Preview uses a sandboxed iframe, explicit versioned messages, stale-message rejection, debounced reloads, loading/timeout/error states, and disposal.
+- Structured HTML rejects unsafe tags, event attributes, dangerous URLs, and oversized source fields.
+- Visual hierarchy and animation data are reflected in the generated runtime.
 
 **Still open:** Monaco-level IDE features, richer structured HTML authoring, and two-way visual editing of arbitrary user code.
 
@@ -168,8 +170,9 @@ npm run build
 - Embedded asset data is copied into an `assets/` directory.
 - Export paths are validated for traversal and writes use a temporary directory before rename.
 - Canceled or failed exports do not report success.
+- Export writes are covered by a real temporary-directory filesystem test, including assets, traversal, duplicate paths, and cleanup.
 
-**Still open:** archive export, external GLTF dependency bundling, and production verification in an offline environment.
+**Still open:** archive export, external GLTF dependency bundling, CDN-dependent runtime/offline self-containment, and native dialog verification in a packaged Electron window.
 
 ### Phase 9 — Advanced features · **not started**
 
@@ -288,8 +291,8 @@ The viewport caps device pixel ratio at `2`, uses an explicit WebGL renderer, an
 | 4 | `.wfv` serialization + dialog bridge | `src/editor/document/*`, `src/state/editorStore.ts`, `electron/*` | `npm run build` | Schema validation, autosave and packaged reopen test remain |
 | 5 | Asset registry/import foundation | `src/editor/scene/sceneRuntime.ts`, `src/state/editorStore.ts`, `electron/*` | `npm test`, `npm run build` | HDR environment, thumbnails, external GLTF dependencies remain |
 | 6 | Value-bearing animation foundation | `src/editor/animation/*`, `src/state/editorStore.ts` | `npm test`, `npm run build` | Easing and curves remain |
-| 7 | Versioned WebDocument, CodeMirror code buffer, generator, sandboxed preview | `src/editor/web/*`, `src/App.tsx` | `npm test`, `npm run build` | Monaco-level IDE features and arbitrary code-to-scene sync remain |
-| 8 | Electron static export foundation | `src/editor/web/exportPaths.ts`, `electron/*`, preload types | `npm test`, `npm run build`, IPC syntax check | Archive export and offline production verification remain |
+| 7 | Versioned WebDocument, CodeMirror code buffer, deterministic generator, conflict-safe regions, sandboxed preview | `src/editor/web/*`, `src/App.tsx` | `npm test`, `npm run typecheck`, `npm run build` | Monaco-level IDE features and arbitrary code-to-scene sync remain |
+| 8 | Electron static export filesystem pipeline | `src/editor/web/exportPaths.ts`, `electron/*`, preload types | `npm test`, `npm run build`, IPC syntax check | Archive export, native dialog E2E, and offline/CDN self-containment remain |
 | 9 | Deferred | — | — | Do not start until earlier gates are complete |
 
 ---

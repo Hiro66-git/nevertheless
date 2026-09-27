@@ -16,12 +16,24 @@ export interface RegionParseResult {
 
 export interface GeneratedRegionConflict {
   id: string
-  reason: 'malformed' | 'missing-current' | 'missing-previous' | 'changed-by-both' | 'removed'
+  reason: 'malformed' | 'missing-current' | 'missing-previous' | 'changed-by-user' | 'changed-by-both' | 'removed'
 }
 
 export interface GeneratedRegionMergeResult {
   source: string
   conflicts: GeneratedRegionConflict[]
+  changed: boolean
+}
+
+export interface GeneratedWebSourceFiles {
+  indexHtml: string
+  stylesCss: string
+  sceneJs: string
+}
+
+export interface GeneratedWebSourceMergeResult {
+  files: GeneratedWebSourceFiles
+  conflicts: Array<GeneratedRegionConflict & { file: keyof GeneratedWebSourceFiles }>
   changed: boolean
 }
 
@@ -102,6 +114,10 @@ export const mergeGeneratedRegions = (previousGenerated: string, nextGenerated: 
     }
     const userChangedGeneratedRegion = currentRegion.content !== previousRegion.content
     const generatorChangedRegion = nextRegion.content !== previousRegion.content
+    if (userChangedGeneratedRegion && !generatorChangedRegion) {
+      conflicts.push({ id, reason: 'changed-by-user' })
+      continue
+    }
     if (userChangedGeneratedRegion && generatorChangedRegion && currentRegion.content !== nextRegion.content) {
       conflicts.push({ id, reason: 'changed-by-both' })
       continue
@@ -119,4 +135,17 @@ export const mergeGeneratedRegions = (previousGenerated: string, nextGenerated: 
   if (conflicts.length) return { source: currentSource, conflicts, changed: false }
   for (const replacement of replacements.sort((a, b) => b.start - a.start)) source = `${source.slice(0, replacement.start)}${replacement.content}${source.slice(replacement.end)}`
   return { source, conflicts: [], changed: source !== currentSource }
+}
+
+export const mergeGeneratedWebFiles = (previousGenerated: GeneratedWebSourceFiles, nextGenerated: GeneratedWebSourceFiles, currentSource: GeneratedWebSourceFiles): GeneratedWebSourceMergeResult => {
+  const files = { ...currentSource }
+  const conflicts: Array<GeneratedRegionConflict & { file: keyof GeneratedWebSourceFiles }> = []
+  let changed = false
+  for (const file of ['indexHtml', 'stylesCss', 'sceneJs'] as const) {
+    const result = mergeGeneratedRegions(previousGenerated[file], nextGenerated[file], currentSource[file])
+    files[file] = result.source
+    conflicts.push(...result.conflicts.map((conflict) => ({ ...conflict, file })))
+    changed = changed || result.changed
+  }
+  return { files, conflicts, changed: conflicts.length ? false : changed }
 }

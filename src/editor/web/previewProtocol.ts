@@ -16,7 +16,8 @@ export type PreviewMessage =
 const isError = (value: unknown): value is PreviewError => {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Partial<PreviewError>
-  return typeof candidate.message === 'string' && (candidate.stack === undefined || typeof candidate.stack === 'string') && (candidate.source === undefined || typeof candidate.source === 'string')
+  const validLocation = (item: unknown) => item === undefined || item === null || (typeof item === 'number' && Number.isFinite(item) && item >= 0)
+  return typeof candidate.message === 'string' && candidate.message.length <= 100_000 && (candidate.stack === undefined || typeof candidate.stack === 'string') && (candidate.source === undefined || typeof candidate.source === 'string') && validLocation(candidate.line) && validLocation(candidate.column)
 }
 
 export const parsePreviewMessage = (value: unknown): PreviewMessage | null => {

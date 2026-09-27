@@ -22,6 +22,6 @@ export const buildAssetUrlMap = (assets: Record<string, AssetDefinition>, export
 export const validateRelativeExportPath = (value: string) => {
   if (!value || value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)) throw new Error(`Export path must be relative: ${value}`)
   const normalized = value.replaceAll('\\', '/')
-  if (normalized.split('/').some((segment) => segment === '..' || segment === '')) throw new Error(`Export path contains traversal: ${value}`)
+  if (normalized.split('/').some((segment) => segment === '..' || segment === '.' || segment === '')) throw new Error(`Export path contains traversal: ${value}`)
   return normalized
 }
