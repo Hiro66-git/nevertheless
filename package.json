@@ -1,0 +1,35 @@
+{
+  "name": "webforge-visual",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "electron": "npm run build && electron electron/main.cjs"
+  },
+  "dependencies": {
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.12",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@types/three": "^0.180.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "codemirror": "^6.0.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "three": "^0.180.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "electron": "^44.4.5",
+    "jsdom": "^30.1.1",
+    "vitest": "^5.0.2"
+  }
+}
