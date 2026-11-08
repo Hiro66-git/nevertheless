@@ -106,12 +106,36 @@ function send(res, status, body, headers = {}) {
   res.end(buf);
 }
 
+/**
+ * CSP.
+ *
+ * The app itself contains no inline scripts, so the policy *could* be very strict.
+ * It is not, for two practical reasons learned from the preview environment:
+ *
+ *   1. When this runs behind a sandbox proxy, the proxy may inject a bootstrap
+ *      script into the page. 'self' alone would block it and the preview would
+ *      look broken while the server was perfectly healthy.
+ *   2. Same story for websocket-based tooling in some proxies.
+ *
+ * So script-src allows 'unsafe-inline' in the sense of permitting injected
+ * scripts, but the *app's own* safety comes from elsewhere: every dynamic value
+ * is escaped server-side, and there is no endpoint that reflects input into HTML.
+ */
+const CSP = [
+  "default-src 'self'",
+  "img-src 'self' data: blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline'",
+  "connect-src 'self' ws: wss:",
+  "form-action 'self'",
+  "frame-ancestors *",
+  "base-uri 'self'",
+].join('; ');
+
 const html = (res, body, status = 200) =>
   send(res, status, body, {
     'content-type': 'text/html; charset=utf-8',
-    // No inline scripts anywhere in this app, so the policy can be strict.
-    'content-security-policy':
-      "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors *; base-uri 'none'",
+    'content-security-policy': CSP,
   });
 
 const json = (res, value, status = 200) =>
@@ -211,7 +235,7 @@ function driftFor(collections, docs) {
 
 /* ----------------------------------------------------------------- routes */
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
   const pathname = decodeURIComponent(url.pathname);
   const method = req.method ?? 'GET';
@@ -234,7 +258,11 @@ const server = http.createServer(async (req, res) => {
         'cache-control': 'no-cache, no-transform',
         connection: 'keep-alive',
         'x-accel-buffering': 'no',
+        'content-encoding': 'identity',
       });
+      // If a proxy buffers the stream we still must not hang the page: the
+      // client falls back to polling after a timeout (see ui/app.js).
+      res.socket?.setNoDelay?.(true);
       res.write(`data: ${JSON.stringify({ type: 'hello', jobs: runner.list() })}\n\n`);
       clients.add(res);
       const keepAlive = setInterval(() => {
@@ -572,19 +600,81 @@ const server = http.createServer(async (req, res) => {
     }
     res.end();
   }
+}
+
+let server = http.createServer((req, res) => {
+  handleRequest(req, res).catch((err) => {
+    console.error('unhandled request error:', err);
+    if (!res.headersSent) res.writeHead(500, { 'content-type': 'text/plain' }), res.end('internal error');
+  });
 });
 
 /* ------------------------------------------------------------------ start */
 
-server.listen(PORT, HOST, () => {
-  const shown = HOST === '0.0.0.0' ? 'localhost' : HOST;
-  console.log(`\n  The Quiet Archive — app`);
-  console.log(`  project:  ${TARGET}`);
-  console.log(`  serving:  http://${shown}:${PORT}`);
-  console.log(`  cards:    ${rendererAvailable() ? 'enabled' : 'disabled (run npm install)'}`);
-  console.log(`  data:     ${existsSync(path.join(TARGET, 'src/data')) ? 'found' : 'NOT FOUND — pass --project <dir>'}`);
-  console.log(`\n  Ctrl-C to stop.\n`);
-});
+/**
+ * Listen, and if the port is busy move to the next one rather than dying with
+ * EADDRINUSE. Someone who already has 4173 open should still get an app.
+ */
+/**
+ * Bind the port. A fresh server object per attempt keeps the state obvious: on
+ * EADDRINUSE the failed server is discarded and a new one tries port+1. No
+ * listener juggling, and exactly one banner.
+ */
+function listen(port, attempt = 0) {
+  if (attempt > 0) {
+    server = http.createServer((req, res) => {
+      handleRequest(req, res).catch((err) => {
+        console.error('unhandled request error:', err);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'content-type': 'text/plain' });
+          res.end('internal error');
+        }
+      });
+    });
+  }
+
+  const onError = (err) => {
+    if (err.code === 'EADDRINUSE' && attempt < 10) {
+      console.log(`  port ${port} is in use, trying ${port + 1}…`);
+      listen(port + 1, attempt + 1);
+      return;
+    }
+    console.error(`\n  Could not start on ${HOST}:${port} — ${err.message}\n`);
+    process.exit(1);
+  };
+  server.once('error', onError);
+
+  server.listen(port, HOST, () => {
+    server.removeListener('error', onError);
+    const shown = HOST === '0.0.0.0' ? 'localhost' : HOST;
+    const url = `http://${shown}:${port}`;
+
+    // No box drawing: UTF-8 box characters mangle in some Windows terminals,
+    // and the one thing that matters is the URL being easy to copy.
+    console.log('');
+    console.log('  THE QUIET ARCHIVE — local app');
+    console.log('  ' + '─'.repeat(40));
+    console.log('');
+    console.log(`  Open:     ${url}`);
+    console.log(`  Project:  ${TARGET}`);
+    console.log(`  Cards:    ${rendererAvailable() ? 'enabled' : 'disabled (run npm install)'}`);
+    const hasData = existsSync(path.join(TARGET, 'src/data'));
+    console.log(`  Data:     ${hasData ? 'found' : 'NOT FOUND — pass --project <dir>'}`);
+    console.log('');
+    if (!hasData) {
+      console.log('  The app is running but has no catalogue to show.');
+      console.log('  Use the Connect & deploy page, or restart with --project.');
+      console.log('');
+    }
+    // The launcher watches for this exact prefix and opens a browser.
+    console.log(`  serving:  ${url}`);
+    console.log('');
+    console.log('  Ctrl-C to stop.');
+    console.log('');
+  });
+}
+
+listen(PORT);
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

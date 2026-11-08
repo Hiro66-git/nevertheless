@@ -106,6 +106,7 @@
       appendLine(`$ ${body.job.label}`, 'out');
       addHistoryRow(body.job);
       btn.dataset.jobId = currentJobId;
+      connect(currentJobId);
     } catch (err) {
       appendLine(`Network error: ${err.message}`, 'err');
       setBusy(btn, false);
@@ -142,16 +143,76 @@
     }
   });
 
-  /* ------------------------------------------------------------------ SSE */
+  /* --------------------------------------------------------- live updates */
 
-  let source;
-  let retry = 0;
+  /*
+   * Only connect when a job is actually running. An always-open SSE stream is the
+   * classic way to make a page look dead behind a buffering proxy: the response
+   * never ends, the proxy waits, and the browser shows a spinner.
+   *
+   * So: on page load we do nothing. When the user starts a job we open the stream;
+   * if it does not open within 4s we fall back to polling /api/jobs/:id, which
+   * works through any proxy.
+   */
 
-  function connect() {
+  let source = null;
+  let pollTimer = null;
+
+  const setLiveIndicator = (state) => {
+    const el = document.querySelector('[data-live]');
+    if (!el) return;
+    el.dataset.state = state;
+    el.textContent =
+      state === 'live' ? 'output: streaming' : state === 'polling' ? 'output: polling' : '';
+    el.hidden = state === 'off';
+  };
+
+  function stopStream() {
+    if (source) {
+      source.close();
+      source = null;
+    }
+  }
+
+  function startPolling(jobId) {
+    stopStream();
+    setLiveIndicator('polling');
+    let seen = 0;
+    clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        if (!res.ok) return;
+        const body = await res.json();
+        const lines = !body.log ? [] : body.log.split('\n');
+        for (let i = seen; i < lines.length; i += 1) appendLine(lines[i]);
+        seen = lines.length;
+        if (body.job && body.job.finishedAt) {
+          clearInterval(pollTimer);
+          finishJob(body.job);
+        }
+      } catch {
+        /* keep trying; the SSE attempt may recover */
+      }
+    }, 1500);
+  }
+
+  function connect(jobId) {
+    if (!window.EventSource) return startPolling(jobId);
+    stopStream();
     source = new EventSource('/api/events');
+    let opened = false;
+
+    // Give the stream a short window. If it never opens, poll instead.
+    const guard = setTimeout(() => {
+      if (!opened) startPolling(jobId);
+    }, 4000);
 
     source.onopen = () => {
-      retry = 0;
+      opened = true;
+      clearTimeout(guard);
+      clearInterval(pollTimer);
+      setLiveIndicator('live');
     };
 
     source.onmessage = (event) => {
@@ -173,41 +234,53 @@
       }
 
       if (payload.type === 'job-finished') {
-        addHistoryRow(payload.job);
-        const finished = payload.job;
-        const verb =
-          finished.status === 'ok'
-            ? 'done'
-            : finished.status === 'warning'
-              ? 'finished with warnings'
-              : finished.status;
-        appendLine(`\n— ${verb} (exit ${finished.exitCode}) in ${((finished.durationMs || 0) / 1000).toFixed(1)}s`, finished.status === 'ok' ? 'out' : 'err');
-
-        for (const b of document.querySelectorAll('[data-job]')) {
-          if (b.dataset.jobId === finished.jobId || b.dataset.job === finished.id) setBusy(b, false);
-        }
-
-        // Data-changing jobs should be reflected in the page immediately.
-        if (['verify', 'health', 'collections-fix'].includes(finished.id) && finished.status === 'ok') {
-          appendLine('Reloading to show the new numbers…', 'out');
-          setTimeout(() => window.location.reload(), 1200);
-        }
+        finishJob(payload.job);
         return;
-      }
-
-      if (payload.type === 'hello' && Array.isArray(payload.jobs)) {
-        for (const job of payload.jobs) if (job.lastRun) addHistoryRow(job.lastRun);
       }
     };
 
     source.onerror = () => {
-      source.close();
-      // Back off, but never give up: the server may be restarting.
-      retry = Math.min(retry + 1, 6);
-      setTimeout(connect, 500 * 2 ** retry);
+      clearTimeout(guard);
+      if (!opened) {
+        startPolling(jobId);
+        return;
+      }
+      stopStream();
+      // A dropped stream mid-job: switch to polling rather than dying quietly.
+      if (jobId) startPolling(jobId);
     };
   }
 
+  /** Shared cleanup + messaging for both the stream and the poller. */
+  function finishJob(finished) {
+    addHistoryRow(finished);
+
+    const verb =
+      finished.status === 'ok'
+        ? 'done'
+        : finished.status === 'warning'
+          ? 'finished with warnings'
+          : finished.status;
+
+    appendLine(
+      `\n— ${verb} (exit ${finished.exitCode}) in ${((finished.durationMs || 0) / 1000).toFixed(1)}s`,
+      finished.status === 'ok' ? 'out' : 'err',
+    );
+
+    for (const b of document.querySelectorAll('[data-job]')) {
+      if (b.dataset.jobId === finished.jobId || b.dataset.job === finished.id) setBusy(b, false);
+    }
+
+    // Data-changing jobs should be reflected in the page immediately.
+    if (['verify', 'health', 'collections-fix'].includes(finished.id) && finished.status === 'ok') {
+      appendLine('Reloading to show the new numbers…', 'out');
+      setTimeout(() => window.location.reload(), 1200);
+    }
+
+    clearInterval(pollTimer);
+    stopStream();
+    setLiveIndicator('off');
+  }
 
   /* ----------------------------------------------------------- connections */
 

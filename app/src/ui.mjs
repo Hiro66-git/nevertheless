@@ -97,6 +97,7 @@ function shell({ kind, data, title, body, subtitle }) {
       </div>
     </header>
     ${body}
+    <p class="conn" data-conn hidden role="status"></p>
     <footer class="foot">
       <p>Reads and writes only inside <code>${e(data.target)}</code>. Nothing is uploaded anywhere.</p>
       <p><a href="/about">What this app does and does not change</a></p>
@@ -510,6 +511,7 @@ function jobsPage() {
     <section class="panel" id="logpanel" hidden>
       <div class="panel__head">
         <h2 id="logtitle">Output</h2>
+        <span class="live" data-live hidden aria-live="polite"></span>
         <button class="btn btn--ghost" type="button" data-close-log>Close</button>
       </div>
       <pre class="pre pre--log" id="log" aria-live="polite"></pre>

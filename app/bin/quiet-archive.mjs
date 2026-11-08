@@ -41,6 +41,7 @@ Options
                     accepts owner/repo, https://…, or git@host:owner/repo.git
   --port <n>        port to listen on (default 4173, or $PORT)
   --host <addr>     bind address (default 0.0.0.0)
+  --no-open         do not open a browser (also: QA_NO_OPEN=1)
   --help            this text
 
 Environment
@@ -110,7 +111,46 @@ if (info.exists && !info.hasData) {
 
 /* ------------------------------------------------------------------- start */
 
-const child = spawn(process.execPath, [server, ...argv, '--project', projectArg], { stdio: 'inherit' });
+/* -------------------------------------------------------------- launching */
+
+const NO_OPEN = argv.includes('--no-open') || process.env.QA_NO_OPEN === '1';
+
+const child = spawn(process.execPath, [server, ...argv, '--project', projectArg], {
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+
+/** Open the default browser once, when the server says it is listening. */
+function openBrowser(url) {
+  if (NO_OPEN) {
+    console.log(`  (browser not opened: --no-open)`);
+    return;
+  }
+  const platform = process.platform;
+  const cmd =
+    platform === 'darwin' ? ['open', [url]]
+    : platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
+    : ['xdg-open', [url]];
+
+  const opener = spawn(cmd[0], cmd[1], { stdio: 'ignore', detached: true });
+  opener.on('error', () => {
+    console.log(`  could not open a browser automatically; visit ${url}`);
+  });
+  opener.unref();
+}
+
+let opened = false;
+const forward = (stream) => (chunk) => {
+  const text = chunk.toString();
+  process.stdout.write(text);
+  const match = text.match(/serving:\s+(http:\/\/\S+)/);
+  if (match && !opened) {
+    opened = true;
+    setTimeout(() => openBrowser(match[1]), 250);
+  }
+};
+
+child.stdout.on('data', forward('out'));
+child.stderr.on('data', (chunk) => process.stderr.write(chunk));
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => child.kill(sig));

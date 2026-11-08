@@ -386,3 +386,25 @@ h1 code, h2 code, p code, li code, td code { background: color-mix(in srgb, var(
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ------------------------------------------------------- live output state */
+
+.live {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--good);
+  margin-left: auto;
+  margin-right: 0.75rem;
+}
+.live[data-state='polling'] { color: var(--warn); }
+.live[hidden] { display: none; }
+
+.conn {
+  font-size: 0.78rem;
+  color: var(--warn);
+  border-left: 2px solid currentColor;
+  padding-left: 0.6rem;
+  margin: 1.5rem 0 0;
+}
+.conn[hidden] { display: none; }
