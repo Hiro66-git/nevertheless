@@ -1,0 +1,28 @@
+{
+  "name": "quiet-archive-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local app for The Quiet Archive: collection drift, link verification, social cards, sitemap, citation export.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "quiet-archive": "bin/quiet-archive.mjs"
+  },
+  "scripts": {
+    "start": "node bin/quiet-archive.mjs",
+    "start:project": "node bin/quiet-archive.mjs --project ../site",
+    "verify": "node scripts/verify-links.mjs",
+    "verify:write": "node scripts/verify-links.mjs --write",
+    "health": "node scripts/catalogue-health.mjs --stale-days 10",
+    "check:collections": "node scripts/check-collections.mjs",
+    "fix:collections": "node scripts/check-collections.mjs --fix",
+    "sitemap": "node scripts/sitemap.mjs --robots",
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
+  "optionalDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "satori": "^0.10.13"
+  }
+}

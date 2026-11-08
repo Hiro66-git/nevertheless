@@ -1,4 +1,16 @@
-# nevertheless — The Quiet Archive (P0 fix kit)
+# nevertheless — The Quiet Archive
+
+Two deliverables live here:
+
+1. **[`app/`](app/)** — a downloadable local application (dashboard, link checks,
+   social cards, citation exports, sitemap generator). Build/download:
+   **`app/dist/quiet-archive-app.zip`**. Start with `./start.sh` (or `start.cmd`).
+   Read [`app/README.md`](app/README.md).
+2. **[`p0/`](p0/)** — the drop-in files that go into the Astro site itself
+   (`VerifiedStamp`, `/health/`, OG/citation routes, sitemap, CI workflow).
+   Read [`p0/APPLY.md`](p0/APPLY.md).
+
+---
 
 This repo is the workspace for the Quiet Archive upgrade.
 

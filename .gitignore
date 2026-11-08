@@ -1,4 +1,12 @@
+# app-local
+app/node_modules/
+app/.cache/
+app/projects/
+app/coverage/
+app/test/tmp/
 # kit-local
 p0/node_modules/
-p0/fixtures/node_modules/
 p0/fixtures/.og-preview/
+
+# NOTE: app/dist/quiet-archive-app.zip is committed on purpose — it is the
+# downloadable build the user asked for. Rebuild with `node app/tools/build-zip.mjs`.
