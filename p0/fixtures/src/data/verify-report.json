@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 2,
+  "summary": {
+    "generatedAt": "2026-10-15T10:00:00.000Z",
+    "checked": 8,
+    "catalogueSize": 8,
+    "counts": {
+      "live": 5,
+      "blocked": 1,
+      "dead": 1
+    },
+    "flags": {
+      "host-blocks-automated-checks": 1,
+      "archive-used": 1,
+      "official-url-dead": 1
+    },
+    "archiveFallbacks": 0,
+    "regressions": [
+      {
+        "id": "QA-0076",
+        "slug": "ia-sigir-hard-lessons",
+        "url": "https://cybercemetery.unt.edu/archive/sigir/20131001000000/http://www.sigir.mil/files/HardLessons/Hard_Lessons_Report.pdf"
+      }
+    ],
+    "failures": [
+      {
+        "id": "QA-0076",
+        "slug": "ia-sigir-hard-lessons",
+        "status": "dead",
+        "detail": "404",
+        "archive": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "key": "ntrs-space-shuttle-decision",
+      "id": "QA-0046",
+      "slug": "ntrs-space-shuttle-decision",
+      "title": "The Space Shuttle Decision: NASA's Search for a Reusable Space Vehicle (SP-4221)",
+      "sourceUrl": "https://ntrs.nasa.gov/citations/19990088869",
+      "status": "live",
+      "httpStatus": 200,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": null,
+      "derivedFlags": [],
+      "pinned": false,
+      "manual": null,
+      "archive": null,
+      "archiveNote": null,
+      "regression": false,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    },
+    {
+      "key": "ntrs-hubble-optical-failure",
+      "id": "QA-0042",
+      "slug": "ntrs-hubble-optical-failure",
+      "title": "The Hubble Space Telescope Optical Systems Failure Report",
+      "sourceUrl": "https://ntrs.nasa.gov/citations/19910010258",
+      "status": "live",
+      "httpStatus": 200,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": null,
+      "derivedFlags": [],
+      "pinned": false,
+      "manual": null,
+      "archive": null,
+      "archiveNote": null,
+      "regression": false,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    },
+    {
+      "key": "osti-tory-iic-hazards",
+      "id": "QA-0031",
+      "slug": "osti-tory-iic-hazards",
+      "title": "Tory II-C hazards of operation (Project Pluto nuclear ramjet), Part 10",
+      "sourceUrl": "https://www.osti.gov/biblio/4352655",
+      "status": "live",
+      "httpStatus": 200,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": null,
+      "derivedFlags": [],
+      "pinned": false,
+      "manual": null,
+      "archive": null,
+      "archiveNote": null,
+      "regression": false,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    },
+    {
+      "key": "uk-nao-npfit",
+      "id": "QA-0079",
+      "slug": "uk-nao-npfit",
+      "title": "The National Programme for IT in the NHS: an update on the delivery of detailed care records systems (NAO, 2011)",
+      "sourceUrl": "https://www.nao.org.uk/reports/the-national-programme-for-it-in-the-nhs-an-update-on-the-delivery-of-detailed-care-records-systems/",
+      "status": "live",
+      "httpStatus": 200,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": null,
+      "derivedFlags": [],
+      "pinned": false,
+      "manual": null,
+      "archive": null,
+      "archiveNote": null,
+      "regression": false,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    },
+    {
+      "key": "pi-fbi-sovereign-citizen-guide",
+      "id": "QA-0146",
+      "slug": "pi-fbi-sovereign-citizen-guide",
+      "title": "FBI Domestic Terrorism Reference Guide: Sovereign Citizen Violent Extremism (U//FOUO)",
+      "sourceUrl": "https://publicintelligence.net/fbi-sovereign-citizen-violent-extremism-guide/",
+      "status": "blocked",
+      "httpStatus": 200,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": null,
+      "derivedFlags": [
+        "host-blocks-automated-checks",
+        "document-date-approx",
+        "release-date-approx"
+      ],
+      "pinned": false,
+      "manual": "2026-10-15",
+      "archive": null,
+      "archiveNote": null,
+      "regression": false,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    },
+    {
+      "key": "ia-sigir-hard-lessons",
+      "id": "QA-0076",
+      "slug": "ia-sigir-hard-lessons",
+      "title": "Hard Lessons: The Iraq Reconstruction Experience (SIGIR, 2009)",
+      "sourceUrl": "https://cybercemetery.unt.edu/archive/sigir/20131001000000/http://www.sigir.mil/files/HardLessons/Hard_Lessons_Report.pdf",
+      "status": "dead",
+      "httpStatus": 404,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": "official-url-dead",
+      "derivedFlags": [
+        "mirror-used",
+        "release-date-approx",
+        "archive-used",
+        "official-url-dead"
+      ],
+      "pinned": false,
+      "manual": null,
+      "archive": null,
+      "archiveNote": null,
+      "regression": true,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    },
+    {
+      "key": "uk-price-paid-data",
+      "id": "QA-0171",
+      "slug": "uk-price-paid-data",
+      "title": "HM Land Registry Price Paid Data",
+      "sourceUrl": "https://use-land-property-data.service.gov.uk/datasets/price-paid",
+      "status": "live",
+      "httpStatus": 200,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": null,
+      "derivedFlags": [
+        "release-date-approx"
+      ],
+      "pinned": false,
+      "manual": null,
+      "archive": null,
+      "archiveNote": null,
+      "regression": false,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    },
+    {
+      "key": "in-nai-partition-records",
+      "id": "QA-0207",
+      "slug": "in-nai-partition-records",
+      "title": "National Archives of India: partition-era records, 1947",
+      "sourceUrl": "https://nationalarchives.nic.in/",
+      "status": "live",
+      "httpStatus": 200,
+      "finalUrl": null,
+      "elapsedMs": 420,
+      "flag": null,
+      "derivedFlags": [
+        "release-date-approx",
+        "release-date-unknown"
+      ],
+      "pinned": false,
+      "manual": null,
+      "archive": null,
+      "archiveNote": null,
+      "regression": false,
+      "checkedAt": "2026-10-15T10:00:00.000Z"
+    }
+  ]
+}

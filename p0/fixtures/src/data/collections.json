@@ -1,0 +1,49 @@
+{
+  "collections": [
+    {
+      "slug": "failed-procurement-programs",
+      "title": "Failed Procurement Programs",
+      "description": "Billions spent, little delivered: auditors' autopsies of projects that collapsed under their own requirements.",
+      "documentCount": 5,
+      "dateRange": "1962–2011",
+      "documents": [
+        "ntrs-space-shuttle-decision",
+        "ntrs-hubble-optical-failure",
+        "osti-tory-iic-hazards",
+        "uk-nao-npfit",
+        "ia-sigir-hard-lessons"
+      ]
+    },
+    {
+      "slug": "raw-data-the-governments-spreadsheets",
+      "title": "Raw Data: The Government's Own Spreadsheets",
+      "description": "Fifteen free bulk datasets, on storms, crashes, lobbying, sentencing and toxic releases, that most newsrooms never download.",
+      "documentCount": 1,
+      "dateRange": "1995",
+      "documents": [
+        "uk-price-paid-data"
+      ]
+    },
+    {
+      "slug": "inside-the-bureau",
+      "title": "Inside the Bureau",
+      "description": "Gangsters, physicists, poets, radicals and hijackers: fifty years of FBI files.",
+      "documentCount": 1,
+      "dateRange": "2023",
+      "documents": [
+        "pi-fbi-sovereign-citizen-guide"
+      ]
+    },
+    {
+      "slug": "south-asia-in-the-files",
+      "title": "South Asia in the Files",
+      "description": "Partition-era archives, the 1971 war, and the bomb, as seen from New Delhi and Washington.",
+      "documentCount": 1,
+      "dateRange": "1748",
+      "documents": [
+        "in-nai-partition-records",
+        "missing-record-slug"
+      ]
+    }
+  ]
+}

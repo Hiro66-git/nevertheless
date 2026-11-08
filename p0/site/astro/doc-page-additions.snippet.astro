@@ -1,0 +1,193 @@
+---
+/**
+ * Additions for src/pages/doc/[slug].astro.
+ *
+ * Replaces the hand-built "Cite" paragraph and adds the three things the audit
+ * asked for that researchers actually use:
+ *   - machine-readable citation downloads (BibTeX / RIS / CSL-JSON)
+ *   - a per-record social card (already generated; this just references it)
+ *   - a per-record freshness line tied to the verification run, not the build
+ *
+ * Copy the frontmatter lines into the page's frontmatter, then place the markup
+ * where the old "## Cite" section was.
+ */
+import { toBibtex, toRis, toCslJson, toPlainCitation } from '../../lib/cite.mjs';
+import { formatVerifiedStamp, relativeDays } from '../../lib/dates.mjs';
+import { ogImagePath } from '../../lib/og-render.mjs';
+import health from '../../data/health.json';
+
+// `doc` is the record already loaded by the page.
+const doc = Astro.props.doc; // adjust to however this page receives its record
+
+const urldate = health.verifiedAt ? String(health.verifiedAt).slice(0, 10) : undefined;
+const bibtex = toBibtex(doc, { urldate });
+const ris = toRis(doc);
+const csl = JSON.stringify(toCslJson(doc), null, 2);
+const plainCitation = toPlainCitation(doc);
+
+// Per-record link freshness. A record can be older than the last full run if it
+// was added (or hand-checked) later, so compute from the record where possible.
+const recordChecked = doc.checked ?? health.verifiedAt;
+const recordFreshness = recordChecked ? relativeDays(recordChecked) : null;
+const recordStale = health.stale;
+const ogImage = ogImagePath(doc.slug);
+
+// Pass these to the layout:
+const head = {
+  ogImage,
+  ogImageAlt: `${doc.documentType ?? 'Record'} · ${doc.title} (${doc.id})`,
+  type: 'article' as const,
+  publishedTime: doc.documentDate ?? undefined,
+};
+
+// Download endpoints rendered by src/pages/cite/[slug].{bib,ris,json}.ts
+const downloads = {
+  bibtex: `/cite/${doc.slug}.bib`,
+  ris: `/cite/${doc.slug}.ris`,
+  csl: `/cite/${doc.slug}.json`,
+};
+---
+
+<!-- Replace the old "## Cite" block with this. -->
+<section class="cite" aria-labelledby="cite-heading">
+  <h2 id="cite-heading">Cite this record</h2>
+
+  <p class="cite__text">{plainCitation}</p>
+
+  <div class="cite__actions">
+    <a class="btn" href={downloads.bibtex} download type="application/x-bibtex">
+      BibTeX
+    </a>
+    <a class="btn" href={downloads.ris} download type="application/x-research-info-systems">
+      RIS (Zotero, EndNote)
+    </a>
+    <a class="btn" href={downloads.csl} download type="application/vnd.citationstyles.csl+json">
+      CSL-JSON
+    </a>
+    <button class="btn btn--ghost" type="button" data-copy-citation>
+      Copy citation
+    </button>
+    <a class="btn btn--ghost" href={doc.sourceUrl} rel="noopener">
+      Official source
+    </a>
+  </div>
+
+  <details class="cite__raw">
+    <summary>Show raw BibTeX</summary>
+    <pre><code>{bibtex}</code></pre>
+  </details>
+
+  <!--
+    Freshness, stated per record. Uses <time> so it is machine-readable, and
+    spells out the stale case in words rather than relying on colour.
+  -->
+  <p class="cite__freshness">
+    {
+      recordChecked ? (
+        <>
+          Link {doc.status === 'dead' ? 'unreachable (archive copy linked)' : 'checked'}{' '}
+          <time datetime={String(recordChecked)}>{recordFreshness}</time>
+          {recordStale && <strong> · the weekly check is overdue; treat this as provisional</strong>}
+          {' · '}
+          <a href="/health/">what this means</a>
+        </>
+      ) : (
+        <>
+          Not yet machine-checked · <a href="/health/">what this means</a>
+        </>
+      )
+    }
+  </p>
+</section>
+
+<script>
+  // Copy-to-clipboard without a dependency. Falls back to selecting the text.
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-citation]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const text = btn.closest('.cite')?.querySelector('.cite__text')?.textContent?.trim();
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = original; }, 1800);
+      } catch {
+        // Clipboard blocked: select the citation so the reader can copy it themselves.
+        const el = btn.closest('.cite')?.querySelector('.cite__text');
+        if (el) {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+      }
+    });
+  });
+</script>
+
+<style>
+  .cite {
+    border-top: 1px solid var(--rule, #d9d0c1);
+    padding-top: 1.5rem;
+    margin-top: 2.5rem;
+  }
+  .cite h2 {
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft, #6b635a);
+    margin: 0 0 0.75rem;
+  }
+  .cite__text {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    max-width: 62ch;
+  }
+  .cite__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--rule, #d9d0c1);
+    border-radius: 2px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn:hover,
+  .btn:focus-visible {
+    border-color: var(--ink, #191613);
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--ink, #191613);
+    outline-offset: 2px;
+  }
+  .btn--ghost {
+    border-color: transparent;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .cite__raw pre {
+    overflow-x: auto;
+    padding: 0.85rem;
+    background: color-mix(in srgb, var(--ink, #191613) 4%, transparent);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  .cite__freshness {
+    margin-top: 1rem;
+    font-size: 0.78rem;
+    color: var(--ink-soft, #6b635a);
+  }
+</style>

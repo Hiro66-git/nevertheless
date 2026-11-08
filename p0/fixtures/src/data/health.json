@@ -1,0 +1,237 @@
+{
+  "generatedAt": "2026-11-08T08:17:04.126Z",
+  "verifiedAt": "2026-10-15T10:00:00.000Z",
+  "verifiedLabel": "Links verified 15 October 2026",
+  "verifiedRelative": "24 days ago",
+  "checkAgeDays": 23,
+  "stale": false,
+  "staleAfterDays": null,
+  "totals": {
+    "records": 8,
+    "machineChecked": 6,
+    "humanChecked": 1,
+    "handCheckedShare": "13%",
+    "archiveFallbacks": 0,
+    "recordsAwaitingFallback": 1,
+    "dateUncertainty": 4,
+    "missingReleaseDate": 0
+  },
+  "linkStates": [
+    {
+      "key": "live",
+      "label": "Live",
+      "blurb": "Responded normally to the last automated check.",
+      "count": 6,
+      "share": "75%"
+    },
+    {
+      "key": "blocked",
+      "label": "Bot-walled",
+      "blurb": "The host refuses automated checkers, so the link cannot be machine-verified. Checked by hand where possible.",
+      "count": 1,
+      "share": "13%"
+    },
+    {
+      "key": "dead",
+      "label": "Dead",
+      "blurb": "Failed the last check. Use the Internet Archive copy.",
+      "count": 1,
+      "share": "13%"
+    }
+  ],
+  "flags": [
+    {
+      "key": "release-date-approx",
+      "count": 4,
+      "share": "50%",
+      "blurb": "Release date is approximate (best available public evidence)."
+    },
+    {
+      "key": "archive-used",
+      "count": 1,
+      "share": "13%",
+      "blurb": "Links to an Internet Archive snapshot because the official site is offline."
+    },
+    {
+      "key": "document-date-approx",
+      "count": 1,
+      "share": "13%",
+      "blurb": "Document date is approximate or spans a range; the earliest year is shown."
+    },
+    {
+      "key": "host-blocks-automated-checks",
+      "count": 1,
+      "share": "13%",
+      "blurb": "The host blocks automated link checks; the link was confirmed by hand or via the official index."
+    },
+    {
+      "key": "mirror-used",
+      "count": 1,
+      "share": "13%",
+      "blurb": "Links to a faithful mirror because the official copy is gone or unusable."
+    },
+    {
+      "key": "official-url-dead",
+      "count": 1,
+      "share": "13%",
+      "blurb": "The original official URL no longer works."
+    },
+    {
+      "key": "release-date-unknown",
+      "count": 1,
+      "share": "13%",
+      "blurb": "No reliable public release date could be found."
+    }
+  ],
+  "hosts": [
+    {
+      "host": "NASA Technical Reports Server",
+      "count": 2
+    },
+    {
+      "host": "HM Land Registry",
+      "count": 1
+    },
+    {
+      "host": "Internet Archive",
+      "count": 1
+    },
+    {
+      "host": "National Archives of India",
+      "count": 1
+    },
+    {
+      "host": "National Audit Office (UK)",
+      "count": 1
+    },
+    {
+      "host": "OSTI.GOV",
+      "count": 1
+    },
+    {
+      "host": "Public Intelligence",
+      "count": 1
+    }
+  ],
+  "issuers": [
+    {
+      "issuer": "NASA",
+      "count": 2
+    },
+    {
+      "issuer": "FBI",
+      "count": 1
+    },
+    {
+      "issuer": "HMLR",
+      "count": 1
+    },
+    {
+      "issuer": "LLNL",
+      "count": 1
+    },
+    {
+      "issuer": "NAI",
+      "count": 1
+    },
+    {
+      "issuer": "NAO",
+      "count": 1
+    },
+    {
+      "issuer": "SIGIR",
+      "count": 1
+    }
+  ],
+  "countries": [
+    {
+      "country": "United States",
+      "count": 5
+    },
+    {
+      "country": "United Kingdom",
+      "count": 2
+    },
+    {
+      "country": "India",
+      "count": 1
+    }
+  ],
+  "documentTypes": [
+    {
+      "type": "report",
+      "count": 3
+    },
+    {
+      "type": "official-history",
+      "count": 2
+    },
+    {
+      "type": "collection",
+      "count": 1
+    },
+    {
+      "type": "dataset",
+      "count": 1
+    },
+    {
+      "type": "manual",
+      "count": 1
+    }
+  ],
+  "years": [
+    {
+      "year": 1748,
+      "count": 1
+    },
+    {
+      "year": 1962,
+      "count": 1
+    },
+    {
+      "year": 1990,
+      "count": 1
+    },
+    {
+      "year": 1995,
+      "count": 1
+    },
+    {
+      "year": 1999,
+      "count": 1
+    },
+    {
+      "year": 2009,
+      "count": 1
+    },
+    {
+      "year": 2011,
+      "count": 1
+    },
+    {
+      "year": 2023,
+      "count": 1
+    }
+  ],
+  "problems": {
+    "duplicateIds": [],
+    "duplicateSlugs": [],
+    "nonHttps": [],
+    "thinSummaries": [],
+    "awaitingFallback": [
+      {
+        "id": "QA-0076",
+        "slug": "ia-sigir-hard-lessons",
+        "status": "dead",
+        "url": "https://cybercemetery.unt.edu/archive/sigir/20131001000000/http://www.sigir.mil/files/HardLessons/Hard_Lessons_Report.pdf"
+      }
+    ]
+  },
+  "regressions": [
+    {
+      "id": "QA-0076",
+      "slug": "ia-sigir-hard-lessons",
+      "url": "https://cybercemetery.unt.edu/archive/sigir/20131001000000/http://www.sigir.mil/files/HardLessons/Hard_Lessons_Report.pdf"
+    }
+  ]
+}

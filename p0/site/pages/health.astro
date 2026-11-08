@@ -1,0 +1,373 @@
+---
+/**
+ * /health/ — the public catalogue-health page.
+ *
+ * src/pages/health.astro
+ *
+ * The audit's complaint was that the archive asks to be trusted but publishes
+ * no evidence of its own upkeep. This page is that evidence, computed entirely
+ * from src/data/health.json (itself generated from the verify run). Nothing on
+ * this page is typed by hand, so it cannot drift from the data.
+ */
+import Base from '../layouts/Base.astro';
+import health from '../data/health.json';
+import { ogImagePath } from '../lib/og-render.mjs';
+
+const title = 'Catalogue health: every link, checked';
+const description = `The state of The Quiet Archive's ${health.totals.records} records: which links responded at the last check, which were confirmed by hand, and every record still carrying an uncertain date.`;
+
+const freshness =
+  health.checkAgeDays == null
+    ? 'never'
+    : health.checkAgeDays === 0
+      ? 'today'
+      : health.checkAgeDays === 1
+        ? 'yesterday'
+        : `${health.checkAgeDays} days ago`;
+
+const pctValue = (share: string) => Number.parseFloat(share) || 0;
+---
+
+<Base title={`${title} · The Quiet Archive`} description={description} ogImage={ogImagePath()}>
+  <main id="main" class="health">
+    <header class="health__head">
+      <p class="kicker">Catalogue health</p>
+      <h1>Every link, and what happened when we asked.</h1>
+      <p class="lede">
+        This page is generated from the archive's own link check. It is the same data the
+        "links verified" stamp in the masthead is built from, so the two cannot disagree.
+      </p>
+    </header>
+
+    {health.stale && (
+      <aside class="banner banner--warn" role="status">
+        <strong>The weekly check is overdue.</strong>
+        The last run was {health.verifiedLabel?.replace('Links verified ', '')} ({freshness}).
+        Link states below may be out of date.
+        {health.staleAfterDays && <> The check is expected at least every {health.staleAfterDays} days.</>}
+      </aside>
+    )}
+
+    <!-- Headline numbers -->
+    <section class="stats" aria-label="Summary">
+      <div class="stat">
+        <span class="stat__value">{health.totals.records}</span>
+        <span class="stat__label">records catalogued</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{health.totals.machineChecked}</span>
+        <span class="stat__label">links answered a machine check</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{health.totals.humanChecked}</span>
+        <span class="stat__label">confirmed by hand ({health.totals.handCheckedShare})</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{health.totals.archiveFallbacks}</span>
+        <span class="stat__label">archive copies in use</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{health.totals.dateUncertainty}</span>
+        <span class="stat__label">records with an uncertain date</span>
+      </div>
+    </section>
+
+    <p class="runline">
+      Last full run: <time datetime={health.verifiedAt ?? undefined}>{health.verifiedLabel?.replace('Links verified ', '') ?? 'never'}</time>
+      · {freshness}
+      {health.regressions.length > 0 && (
+        <> · <a href="#regressions">{health.regressions.length} newly dead link{health.regressions.length === 1 ? '' : 's'}</a></>
+      )}
+    </p>
+
+    <!-- Link states -->
+    <section aria-labelledby="states">
+      <h2 id="states">Link states</h2>
+      <table>
+        <thead>
+          <tr><th scope="col">Status</th><th scope="col">What it means</th><th scope="col" class="num">Records</th><th scope="col" class="num">Share</th></tr>
+        </thead>
+        <tbody>
+          {health.linkStates.map((s) => (
+            <tr>
+              <th scope="row"><span class:list={['pill', `pill--${s.key}`]}>{s.label}</span></th>
+              <td>{s.blurb}</td>
+              <td class="num">{s.count}</td>
+              <td class="num">
+                <span class="bar" aria-hidden="true"><span style={`width:${pctValue(s.share)}%`} /></span>
+                {s.share}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Flags -->
+    <section aria-labelledby="flags">
+      <h2 id="flags">What we are unsure about</h2>
+      <p class="note">
+        These flags appear on document pages. They are the archive saying what it does not know,
+        which is the point of the catalogue.
+      </p>
+      <table>
+        <thead>
+          <tr><th scope="col">Flag</th><th scope="col">What it means</th><th scope="col" class="num">Records</th><th scope="col" class="num">Share</th></tr>
+        </thead>
+        <tbody>
+          {health.flags.map((f) => (
+            <tr>
+              <th scope="row"><code>{f.key}</code></th>
+              <td>{f.blurb}</td>
+              <td class="num">{f.count}</td>
+              <td class="num">
+                <span class="bar" aria-hidden="true"><span style={`width:${pctValue(f.share)}%`} /></span>
+                {f.share}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Coverage -->
+    <section aria-labelledby="coverage" class="coverage">
+      <h2 id="coverage">Where the archive reaches</h2>
+      <div class="coverage__grid">
+        <div>
+          <h3>Hosts</h3>
+          <ul class="rank">
+            {health.hosts.slice(0, 12).map((h) => <li><span>{h.host}</span><span class="num">{h.count}</span></li>)}
+          </ul>
+        </div>
+        <div>
+          <h3>Jurisdictions</h3>
+          <ul class="rank">
+            {health.countries.map((c) => <li><span>{c.country}</span><span class="num">{c.count}</span></li>)}
+          </ul>
+        </div>
+        <div>
+          <h3>Document types</h3>
+          <ul class="rank">
+            {health.documentTypes.slice(0, 12).map((t) => <li><span>{t.type}</span><span class="num">{t.count}</span></li>)}
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Regressions -->
+    {health.regressions.length > 0 && (
+      <section id="regressions" aria-labelledby="regressions-h">
+        <h2 id="regressions-h">Links that stopped working</h2>
+        <p class="note">These worked at the previous check and did not answer this time. An archive copy is linked where one exists.</p>
+        <ul class="regressions">
+          {health.regressions.map((r) => (
+            <li>
+              <a href={`/doc/${r.slug}/`}>{r.id} — read the record</a>
+              <code>{r.url}</code>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    <!-- Problems -->
+    {(health.problems.duplicateIds.length > 0 || health.problems.nonHttps.length > 0 || health.problems.awaitingFallback.length > 0) && (
+      <section aria-labelledby="todo">
+        <h2 id="todo">Open work</h2>
+        <p class="note">Published on purpose. A catalogue that hides its own defects is asking for trust it has not earned.</p>
+        <ul>
+          {health.problems.awaitingFallback.length > 0 && (
+            <li>
+              <strong>{health.problems.awaitingFallback.length}</strong> failing link{health.problems.awaitingFallback.length === 1 ? '' : 's'} with no Internet Archive copy yet:
+              {health.problems.awaitingFallback.slice(0, 8).map((r) => <code>{r.id}</code>)}
+            </li>
+          )}
+          {health.problems.nonHttps.length > 0 && (
+            <li><strong>{health.problems.nonHttps.length}</strong> source URL{health.problems.nonHttps.length === 1 ? '' : 's'} not served over https</li>
+          )}
+          {health.problems.duplicateIds.length > 0 && (
+            <li><strong>{health.problems.duplicateIds.length}</strong> duplicate catalogue number{health.problems.duplicateIds.length === 1 ? '' : 's'}: {health.problems.duplicateIds.join(', ')}</li>
+          )}
+          {health.problems.duplicateSlugs.length > 0 && (
+            <li><strong>{health.problems.duplicateSlugs.length}</strong> duplicate slug{health.problems.duplicateSlugs.length === 1 ? '' : 's'}: {health.problems.duplicateSlugs.join(', ')}</li>
+          )}
+        </ul>
+      </section>
+    )}
+
+    <footer class="health__foot">
+      <p>
+        Generated {new Date(health.generatedAt).toISOString().slice(0, 10)} from <code>src/data/verify-report.json</code>.
+        The check requests each source URL with a browser-like client, follows redirects, and never downloads the file.
+        Questions or corrections: <a href="/about/#corrections">open an issue</a>.
+      </p>
+      <p>
+        Machine-readable: <a href="/search-index.json">/search-index.json</a> ·
+        <a href="/rss.xml">/rss.xml</a>
+      </p>
+    </footer>
+  </main>
+</Base>
+
+<style>
+  .health {
+    max-width: 68rem;
+  }
+  .kicker {
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent, #8c2f1e);
+  }
+  .lede {
+    max-width: 58ch;
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+  .banner {
+    border-left: 3px solid var(--accent, #8c2f1e);
+    padding: 0.85rem 1rem;
+    margin: 1.5rem 0;
+    background: color-mix(in srgb, var(--accent, #8c2f1e) 6%, transparent);
+    font-size: 0.92rem;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px;
+    background: var(--rule, #d9d0c1);
+    border: 1px solid var(--rule, #d9d0c1);
+    margin: 2rem 0 1rem;
+  }
+  .stat {
+    background: var(--paper, #fbf7ef);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .stat__value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .stat__label {
+    font-size: 0.78rem;
+    color: var(--ink-soft, #6b635a);
+    line-height: 1.35;
+  }
+  .runline {
+    font-size: 0.82rem;
+    color: var(--ink-soft, #6b635a);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    margin: 0.75rem 0 2rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.55rem 0.6rem;
+    border-bottom: 1px solid var(--rule, #d9d0c1);
+    vertical-align: top;
+  }
+  thead th {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft, #6b635a);
+  }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  /* The number is never the only signal: the pill carries the label too. */
+  .pill {
+    display: inline-block;
+    padding: 0.12rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    font-size: 0.74rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill--live,
+  .pill--live-redirected,
+  .pill--manual {
+    color: #2f5d3a;
+  }
+  .pill--dead,
+  .pill--unreachable {
+    color: var(--accent, #8c2f1e);
+  }
+  .pill--blocked {
+    color: var(--ink-soft, #6b635a);
+  }
+  .bar {
+    display: inline-block;
+    width: 4rem;
+    height: 0.45rem;
+    margin-right: 0.4rem;
+    background: color-mix(in srgb, var(--ink, #191613) 8%, transparent);
+    vertical-align: middle;
+  }
+  .bar span {
+    display: block;
+    height: 100%;
+    background: currentColor;
+    opacity: 0.45;
+  }
+  code {
+    font-size: 0.82em;
+  }
+  .note {
+    max-width: 62ch;
+    font-size: 0.88rem;
+    color: var(--ink-soft, #6b635a);
+  }
+  .coverage__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 2rem;
+  }
+  .rank {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+  }
+  .rank li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--rule, #d9d0c1) 60%, transparent);
+  }
+  .rank li span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .regressions li {
+    margin-bottom: 0.75rem;
+    font-size: 0.88rem;
+  }
+  .regressions code {
+    display: block;
+    font-size: 0.76rem;
+    color: var(--ink-soft, #6b635a);
+    overflow-wrap: anywhere;
+  }
+  .health__foot {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule, #d9d0c1);
+    font-size: 0.8rem;
+    color: var(--ink-soft, #6b635a);
+  }
+</style>

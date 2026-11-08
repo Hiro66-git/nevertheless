@@ -1,0 +1,124 @@
+name: Verify links
+
+# Replaces the existing weekly job.
+#
+# What changed and why:
+#   * The run now commits src/data/verify-report.json, and the "Links verified
+#     <date>" stamp on every page is rendered from that file. The stamp can no
+#     longer say 16 October while the last run was in November.
+#   * A run that finds new dead links still commits the report (so the archive
+#     copy fallback and the health page update), then fails the job, so the
+#     breakage is visible instead of silent.
+#   * If verification has not run for 10 days, the deploy job fails rather than
+#     shipping a fossilised stamp.
+#   * Concurrency is per-host and the job is cheap: ~250 requests, one per record.
+
+on:
+  schedule:
+    # Monday 06:17 UTC. Off the hour keeps us out of GitHub's busiest slot.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      spn:
+        description: 'Trigger Save Page Now for dead links with no snapshot'
+        type: boolean
+        default: false
+      only:
+        description: 'Comma-separated ids/slugs to check (blank = everything)'
+        type: string
+        default: ''
+  push:
+    paths:
+      - 'src/data/documents.json'
+      - 'src/data/**/*.json'
+      - 'scripts/verify-links.mjs'
+      - '.github/workflows/verify-links.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-links
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate the catalogue before touching it
+        run: node scripts/check-collections.mjs
+
+      - name: Check every source URL
+        id: check
+        # --write patches documents.json with status/flags/archive/checked.
+        # --fail-on-regression exits 2 if a link that worked last week is dead now.
+        run: |
+          set +e
+          EXTRA=""
+          if [ "${{ inputs.spn }}" = "true" ]; then EXTRA="--spn"; fi
+          if [ -n "${{ inputs.only }}" ]; then EXTRA="$EXTRA --only ${{ inputs.only }}"; fi
+          node scripts/verify-links.mjs --write --concurrency 6 --per-host 2 $EXTRA
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "1" ]; then exit 1; fi   # fatal
+          exit 0                                   # 0 and 2 both continue
+
+      - name: Rebuild the catalogue-health data and the stamp
+        run: node scripts/catalogue-health.mjs --stale-days 10
+
+      - name: Commit the run
+        run: |
+          git config user.name  "quiet-archive-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add src/data/verify-report.json src/data/health.json src/data/documents.json src/data/collections.json
+          if git diff --cached --quiet; then
+            echo "No catalogue changes this week."
+          else
+            LINK_COUNT=$(node -e "console.log(require('./src/data/health.json').totals.records)")
+            STAMP=$(node -e "console.log(require('./src/data/health.json').verifiedLabel)")
+            git commit -m "chore(verify): ${STAMP}" -m "Checked ${LINK_COUNT} source URLs. Regressions: $(node -e "const r=require('./src/data/verify-report.json').summary.regressions;console.log(r.length?r.map(x=>x.id).join(', '):'none')")" -m "[skip ci]"
+            git push
+          fi
+
+      - name: Fail the run if a working link died
+        if: steps.check.outputs.exit_code == '2'
+        run: |
+          echo "::error::Newly dead links found. See src/data/verify-report.json (summary.regressions)."
+          node -e "const r=require('./src/data/verify-report.json').summary.regressions;for(const x of r)console.log('::error file=src/data/documents.json::'+x.id+' '+(x.slug||'')+' '+x.url)"
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const h = require('./src/data/health.json');
+          const lines = [
+            `## ${h.verifiedLabel ?? 'never verified'}`,
+            '',
+            `| | |`,
+            `| --- | --- |`,
+            `| Records | ${h.totals.records} |`,
+            `| Machine-checked | ${h.totals.machineChecked} |`,
+            `| Checked by hand | ${h.totals.humanChecked} |`,
+            `| Archive fallbacks used | ${h.totals.archiveFallbacks} |`,
+            `| Awaiting a fallback | ${h.totals.recordsAwaitingFallback} |`,
+            `| Documents with uncertain dates | ${h.totals.dateUncertainty} |`,
+            '',
+            '### Link states',
+            ...h.linkStates.map((s) => `- **${s.label}** ${s.count} (${s.share})`),
+            '',
+            '### Flags',
+            ...h.flags.map((f) => `- \`${f.key}\` ${f.count} (${f.share})`),
+          ];
+          if (h.regressions.length) {
+            lines.push('', '### Regressions', ...h.regressions.map((r) => `- ${r.id} ${r.url}`));
+          }
+          console.log(lines.join('\n'));
+          NODE

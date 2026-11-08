@@ -1,0 +1,111 @@
+---
+/**
+ * Paste into the <head> of src/layouts/Base.astro (the layout every page uses).
+ *
+ * Covers four audit findings at once:
+ *   - OG/Twitter cards actually exist and point at generated images (finding: no
+ *     OG verification, links unfurl as bare URLs).
+ *   - The canonical host is configurable, so moving off *.pages.dev is a one-line
+ *     change rather than a find-and-replace (finding: throwaway domain).
+ *   - The sitemap advertised in robots.txt is the one we actually serve
+ *     (finding: /sitemap.xml 404s while robots points at sitemap-index.xml).
+ *   - The "links verified" stamp comes from health.json (finding: stale stamp).
+ */
+import health from '../../src/data/health.json';
+import { formatVerifiedStamp } from '../../src/lib/dates.mjs';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Path of the generated card, e.g. ogImagePath(slug) */
+  ogImage?: string;
+  /** Alt text for the card; never leave an image unlabelled. */
+  ogImageAlt?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+  /** ISO date of the record, for article:published_time */
+  publishedTime?: string;
+}
+
+const {
+  title,
+  description = 'A reading room for the public record: declassified files, inspector-general audits and raw datasets, each linked to its official source and an Internet Archive copy.',
+  ogImage = '/og.png',
+  ogImageAlt = 'The Quiet Archive: public records nobody reads, catalogued.',
+  type = 'website',
+  noindex = false,
+  publishedTime,
+} = Astro.props;
+
+// Set SITE_URL in the Cloudflare Pages project to move off the pages.dev domain.
+const site = Astro.site ?? new URL(import.meta.env.SITE ?? 'https://quiet-archive-19i.pages.dev');
+const canonical = new URL(Astro.url.pathname.replace(/\/index\.html$/, '/'), site);
+const ogUrl = new URL(ogImage, site);
+
+// Derived, never typed. If the verifier has not run in 10 days, health.stale is
+// true and the stamp says so instead of quietly implying freshness.
+const verifiedLabel = health.verifiedLabel;
+const verifiedStale = health.stale;
+const verifiedAge = health.checkAgeDays;
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+
+{noindex ? (
+  <meta name="robots" content="noindex, follow" />
+) : (
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+)}
+
+<!-- Open Graph -->
+<meta property="og:type" content={type} />
+<meta property="og:site_name" content="The Quiet Archive" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:image" content={ogUrl} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:alt" content={ogImageAlt} />
+<meta property="og:locale" content="en_GB" />
+{publishedTime && <meta property="article:published_time" content={publishedTime} />}
+
+<!-- Twitter / X, Bluesky, Mastodon all fall back to these -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogUrl} />
+<meta name="twitter:image:alt" content={ogImageAlt} />
+
+<link rel="alternate" type="application/rss+xml" title="The Quiet Archive: newly catalogued" href="/rss.xml" />
+<link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+
+<!--
+  The freshness stamp. Rendered from src/data/health.json, so this sentence can
+  never claim a date that the verifier did not produce. Screen readers get the
+  full sentence; the stale state is announced rather than only coloured.
+-->
+{
+  verifiedLabel && (
+    <meta
+      name="archive:links-verified"
+      content={health.verifiedAt ?? ''}
+      data-stale={String(verifiedStale)}
+    />
+  )
+}
+
+<script is:inline>
+  // Keep the theme preference on-device only (the site has a no-cookies policy).
+  try {
+    const stored = localStorage.getItem('qa-theme');
+    if (stored === 'dark' || stored === 'light') {
+      document.documentElement.dataset.theme = stored;
+    }
+  } catch {}
+</script>

@@ -1,0 +1,110 @@
+---
+/**
+ * Masthead stamp component — replaces the hand-written
+ * "Links verified 16 October 2026" string in the site header.
+ *
+ * Usage (in the header):
+ *   <VerifiedStamp />
+ *
+ * Renders:
+ *   Links verified 16 October 2026
+ * or, when the last run is older than the threshold:
+ *   Links last verified 16 October 2026 · 23 days ago — re-run pending
+ *
+ * The stale branch is the important one: the audit found the banner had been
+ * frozen for weeks while the page implied a weekly check.
+ */
+import health from '../../src/data/health.json';
+import { relativeDays } from '../../src/lib/dates.mjs';
+
+interface Props {
+  /** Show the "N days ago" tail even when fresh. Default: only when stale. */
+  alwaysShowAge?: boolean;
+  class?: string;
+}
+
+const { alwaysShowAge = false, class: className = '' } = Astro.props;
+
+const label = health.verifiedLabel;
+const stale = health.stale;
+const relative = health.verifiedRelative ?? (health.verifiedAt ? relativeDays(health.verifiedAt) : null);
+const showAge = alwaysShowAge || stale;
+---
+
+{
+  label ? (
+    <p
+      class:list={['stamp', stale && 'stamp--stale', className]}
+      data-verified-at={health.verifiedAt}
+      title={
+        stale
+          ? `The weekly link check has not run since ${label.replace('Links verified ', '')}. Treat link status as provisional.`
+          : `Every source link was requested on ${label.replace('Links verified ', '')}.`
+      }
+    >
+      <span class="stamp__dot" aria-hidden="true" />
+      {stale ? 'Links last verified' : 'Links verified'}{' '}
+      <time datetime={health.verifiedAt ?? undefined}>
+        {label.replace('Links verified ', '')}
+      </time>
+      {showAge && relative && <span class="stamp__age"> · {relative}</span>}
+      {stale && <span class="stamp__warn"> · check overdue</span>}
+      <a class="stamp__link" href="/health/">how links are checked</a>
+    </p>
+  ) : (
+    <p class:list={['stamp', 'stamp--unknown', className]}>
+      <span class="stamp__dot" aria-hidden="true" />
+      Link status not yet published
+      <a class="stamp__link" href="/health/">how links are checked</a>
+    </p>
+  )
+}
+
+<style>
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    margin: 0;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft, #6b635a);
+  }
+  .stamp__dot {
+    width: 0.42em;
+    height: 0.42em;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 0.18em color-mix(in srgb, currentColor 18%, transparent);
+    flex: none;
+  }
+  .stamp time {
+    font-variant-numeric: tabular-nums;
+  }
+  .stamp__link {
+    margin-left: 0.5em;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    opacity: 0.75;
+  }
+  .stamp__link:hover,
+  .stamp__link:focus-visible {
+    opacity: 1;
+  }
+  /* Stale state is not colour-only: the text changes too. */
+  .stamp--stale {
+    color: var(--accent, #8c2f1e);
+  }
+  .stamp--stale .stamp__dot {
+    border-radius: 1px;
+  }
+  .stamp__warn {
+    font-weight: 600;
+  }
+  .stamp--unknown .stamp__dot {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+  }
+</style>

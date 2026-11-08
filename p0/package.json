@@ -1,0 +1,25 @@
+{
+  "name": "quiet-archive-p0",
+  "private": true,
+  "version": "1.0.0",
+  "description": "P0 fix kit for The Quiet Archive: link verification, derived stamps, catalogue-health, social cards, citation export.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "verify": "node scripts/verify-links.mjs",
+    "verify:write": "node scripts/verify-links.mjs --write",
+    "health": "node scripts/catalogue-health.mjs",
+    "check:collections": "node scripts/check-collections.mjs",
+    "fix:collections": "node scripts/check-collections.mjs --fix",
+    "og": "node scripts/og-preview.mjs",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "p0": "npm run verify:write && npm run health && npm run check:collections"
+  },
+  "devDependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@resvg/resvg-js": "^2.6.2",
+    "satori": "^0.10.13"
+  }
+}
